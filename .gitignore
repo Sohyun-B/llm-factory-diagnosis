@@ -1,5 +1,8 @@
 .env
 data/
+models/
 __pycache__/
 *.pyc
+*.pkl
 .streamlit/
+nul
