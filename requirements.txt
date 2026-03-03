@@ -4,3 +4,4 @@ numpy
 openai
 python-dotenv
 scikit-learn
+faiss-cpu
