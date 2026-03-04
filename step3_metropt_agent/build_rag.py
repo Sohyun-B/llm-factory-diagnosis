@@ -27,54 +27,64 @@ VECTORSTORE_DIR = os.path.join(MODELS_DIR, "vectorstore")
 DOMAIN_DOCS = [
     # 시스템 구조
     "APU(공기 생산 장치)는 포르투 지하철 열차의 브레이크, 서스펜션, 도어에 사용할 압축 공기를 생산한다. "
-    "주요 부품: 압축기(Compressor), 에어드라이어(Air Dryer), 공기탱크(Reservoir), 클라이언트 파이프.",
+    "주요 부품: 압축기(Compressor), 에어드라이어(Air Dryer), 공기탱크(Reservoir), 클라이언트 파이프. "
+    "데이터는 2020년 2월~8월, 1Hz로 수집됐으며 7개 아날로그 센서와 8개 디지털 센서로 구성된다.",
 
-    # 압력 센서 의미
-    "TP2는 압축기 내부 압력을 측정한다. 정상 운전 시 약 8~10 bar. "
+    # 아날로그 센서
+    "TP2(bar)는 압축기 내부 압력을 측정한다. "
     "TP2가 급락하면 압축기 자체 이상 또는 Air Leak를 의심한다.",
 
-    "TP3는 공기압 패널 출력 압력이다. 정상 운전 시 약 8.5~10 bar. "
-    "Reservoirs 압력과 TP3는 유사해야 정상이며, 두 값의 차이가 커지면 파이프 누출을 의심한다.",
+    "TP3(bar)는 공기압 패널 출력 압력을 측정한다. "
+    "Reservoirs 압력은 TP3와 유사해야 정상이며, 두 값의 차이가 커지면 파이프 누출을 의심한다.",
 
-    "Reservoirs는 공기탱크 내부 압력이다. 브레이크/도어 작동 시 소비되므로 "
-    "사용 빈도에 따라 압력이 변동한다. 지속적으로 낮으면 Air Leak(클라이언트 파이프) 가능성이 높다.",
+    "H1(bar)은 사이클론 분리기 필터 배출 시 발생하는 압력 강하를 측정한다.",
 
-    # 온도 및 전류 센서
-    "Oil_temperature는 압축기 오일 온도이다. 정상 범위 50~75°C. "
-    "오일 온도가 80°C를 초과하면 냉각 이상 또는 오일 부족(Oil Leak)을 의심한다.",
+    "DV_pressure(bar)는 에어드라이어 타워가 공기를 배출할 때 발생하는 압력 강하를 측정한다. "
+    "압축기가 부하 운전 중일 때 값이 0이 정상이다. 비정상적으로 높은 값은 에어드라이어 이상을 시사한다.",
 
-    "Motor_current는 압축기 모터 전류이다. 정지 시 ~0A, 무부하 운전 시 ~4A, 부하 운전 시 ~7A가 정상. "
-    "7.5A를 초과하면 기계적 과부하 또는 압축기 내부 마찰 증가를 의심한다.",
+    "Reservoirs(bar)는 공기탱크의 하류 압력을 측정한다. TP3 값과 근사해야 정상이다. "
+    "브레이크/도어 작동 시 소비되므로 사용 빈도에 따라 압력이 변동한다. "
+    "지속적으로 낮으면 Air Leak 가능성이 높다.",
+
+    "Motor_current(A)는 3상 모터의 1개 상 전류를 측정한다. "
+    "정상 구간별 기준값: 정지 시 ~0A, 무부하 운전 시 ~4A, 부하 운전 시 ~7A, 기동 시 ~9A. "
+    "7A를 지속적으로 초과하면 기계적 과부하를 의심한다.",
+
+    "Oil_temperature(°C)는 압축기 오일 온도를 측정한다. "
+    "오일 온도가 비정상적으로 상승하면 냉각 이상을 의심한다.",
 
     # 디지털 신호
+    "COMP는 압축기 흡입 밸브의 전기 신호다. 공기 흡입이 없을 때(압축기 정지 또는 무부하 운전 상태) 활성화된다.",
+
+    "DV_electric은 압축기 출구 밸브를 제어하는 전기 신호다. 부하 운전 시 활성화, 정지 또는 무부하 운전 시 비활성화된다.",
+
+    "TOWERS는 에어드라이어에서 공기 건조 담당 타워와 습기 배출 담당 타워를 정의하는 신호다. "
+    "비활성 시 타워1 운전, 활성 시 타워2 운전을 나타낸다.",
+
+    "MPG는 APU 압력이 8.2 bar 미만으로 떨어질 때 압축기를 부하 운전으로 기동시키는 신호다. "
+    "MPG 활성화 빈도가 증가하면 Air Leak로 인한 압력 저하를 의심한다.",
+
     "LPS(Low Pressure Switch)는 공기압이 7 bar 미만일 때 활성화(1)되는 저압 알람이다. "
     "LPS가 자주 활성화되면 Air Leak 또는 과소비가 진행 중이다.",
 
-    "Oil_level 신호가 1이면 오일이 정상 수준 이하임을 나타낸다. "
-    "Oil_level=1이 지속되면 Oil Leak 점검이 필요하다.",
+    "Pressure_switch는 에어드라이어 타워의 수분 배출을 감지하는 전기 신호다.",
 
-    "DV_pressure는 에어드라이어가 수분을 배출할 때 발생하는 압력 강하를 측정한다. "
-    "정상 운전 시 DV_pressure=0(무배출). 비정상적으로 높은 값은 에어드라이어 이상을 시사한다.",
+    "Oil_level은 오일이 정상 수준 이하일 때 활성화(1)되는 신호다.",
 
-    # 고장 패턴
-    "Air Leak (클라이언트 파이프) 패턴: "
-    "Reservoirs 압력이 점진적으로 저하 → MPG 신호 활성화 빈도 증가 → LPS 알람 발생. "
-    "원인: 브레이크, 도어, 서스펜션 연결 파이프의 균열 또는 피팅 이완.",
+    "Caudal_impulses는 APU에서 저수지로 흐르는 공기량의 절대값을 펄스로 계산하는 신호다.",
 
-    "Air Leak (에어드라이어) 패턴: "
-    "DV_pressure 값 이상 + 수분 배출 주기 불규칙. "
-    "TP3와 Reservoirs 사이 압력 차이 발생. "
+    # 고장 패턴 (MetroPT-3 실제 발생 유형: Air Leak만 존재)
+    "Air Leak 패턴: Reservoirs 압력이 점진적으로 저하 → MPG 신호 활성화 빈도 증가 → LPS 알람 발생. "
+    "원인: 브레이크, 도어, 서스펜션 연결 파이프 또는 에어드라이어 내부의 균열/피팅 이완. "
+    "MetroPT-3 데이터셋(2020년 2~8월)에서 발생한 실패는 전부 Air Leak이다.",
+
+    "Air Leak (에어드라이어) 세부 패턴: "
+    "DV_pressure 값 이상 + Pressure_switch 신호 불규칙 + TP3와 Reservoirs 사이 압력 차이 발생. "
     "원인: 에어드라이어 내부 밸브 또는 배관 결함.",
 
-    "Oil Leak (압축기) 패턴: "
-    "Oil_temperature 상승 (윤활 감소로 마찰 증가) → Motor_current 상승 → "
-    "Oil_level 알람 발생. 심각 시 TP2 압력 불안정. "
-    "원인: 압축기 오일 씰 손상 또는 오일 배관 균열.",
-
     # 점검 기준
-    "정비 기준: 실패 발생 2시간 전에 이상 신호를 감지하는 것이 목표. "
-    "Air Leak의 경우 Reservoirs 압력이 정상 대비 5% 이상 저하되면 즉시 점검 필요. "
-    "Oil Leak의 경우 Oil_temperature가 75°C를 초과하거나 Oil_level 알람 발생 시 즉시 점검.",
+    "정비 기준: 실패 발생 2시간 전에 이상 신호를 감지하는 것이 목표(MetroPT 논문 명시). "
+    "Air Leak의 경우 Reservoirs 압력이 정상 대비 5% 이상 저하되거나 LPS 알람이 발생하면 즉시 점검이 필요하다.",
 ]
 
 
@@ -210,8 +220,13 @@ def run():
     index.add(embeddings)
     print(f"  FAISS 인덱스: {index.ntotal}개 벡터")
 
-    # 저장
-    faiss.write_index(index, os.path.join(VECTORSTORE_DIR, "index.faiss"))
+    # 저장 (FAISS C++ 라이브러리가 한글 경로 미지원 → 임시 ASCII 경로 우회)
+    import tempfile, shutil
+    tmp_dir = tempfile.mkdtemp()
+    tmp_faiss = os.path.join(tmp_dir, "index.faiss")
+    faiss.write_index(index, tmp_faiss)
+    shutil.move(tmp_faiss, os.path.join(VECTORSTORE_DIR, "index.faiss"))
+    shutil.rmtree(tmp_dir, ignore_errors=True)
     with open(os.path.join(VECTORSTORE_DIR, "documents.pkl"), "wb") as f:
         pickle.dump(docs, f)
     with open(os.path.join(VECTORSTORE_DIR, "embeddings.pkl"), "wb") as f:

@@ -171,19 +171,78 @@ LLM → search_similar_failures("Oil Leak Compressor high temperature")
 
 ## 5. RAG 구축 방법
 
-```python
-# 이벤트 로그 → 벡터 DB 구축
-from langchain.vectorstores import FAISS  # 또는 Chroma
-from langchain.embeddings import OpenAIEmbeddings
+총 35개 문서를 3가지 타입으로 구성. 각 타입의 생성 방식이 완전히 다르다.
 
-# 각 이벤트를 자연어 문장으로 변환 후 임베딩
-documents = [
-    "2022-05-30 12:00 | Oil Leak 발생 | Compressor | 오일 누출 감지, 정비 시작",
-    "2022-03-23 14:54 | Air Leak 발생 | Air Dryer | 에어드라이어 공기 누출",
-    ...
-]
-vectorstore = FAISS.from_texts(documents, OpenAIEmbeddings())
+### 타입 1: `domain_knowledge` — 13건
+
+**생성 방식: 수동 작성 (뇌피셜)**
+
+UCI 데이터셋 설명 페이지와 MetroPT 논문에서 센서 의미와 정상값 범위를 읽고 직접 작성한 문장들. 실제 포르투 지하철 정비 매뉴얼 원문은 없다. 포함 내용:
+
+| 항목 | 건수 |
+|------|------|
+| APU 시스템 구조 설명 | 1건 |
+| 센서별 정상값 및 이상 의미 (TP2, TP3, Reservoirs, Oil_temp, Motor_current, LPS, Oil_level, DV_pressure) | 8건 |
+| 고장 유형별 센서 패턴 (Air Leak 클라이언트, Air Leak 에어드라이어, Oil Leak 압축기) | 3건 |
+| 정비 기준 (임계값, 2시간 전 감지 목표) | 1건 |
+
+실제 프로젝트에서는 장비 매뉴얼 PDF, 기술 사양서, 운영 가이드 등을 파싱해서 사용해야 하는 위치다.
+
+---
+
+### 타입 2: `maintenance_report` — 2건
+
+**생성 방식: 실제 데이터 → 텍스트 변환**
+
+`failure_events.json`에 하드코딩된 MetroPT-3의 실제 정비 기록 2건을 텍스트 문서로 변환한다. 변환 시 `features.pkl`에서 해당 실패 구간의 센서 평균값과 정상 대비 편차를 자동 계산해서 함께 붙인다.
+
 ```
+입력: { id: "F1", type: "Air_Leak", component: "Clients",
+        start: "2020-04-18 00:00", end: "2020-04-18 23:59",
+        description: "..." }
+      + features.pkl의 해당 구간 센서값
+
+출력: "[정비 보고서 F1] 실패 유형: Air_Leak | 부품: Clients |
+       기간: 2020-04-18 00:00 ~ 2020-04-18 23:59 |
+       설명: ... |
+       센서 요약: TP3_mean=8.xxx(정상 대비 +x.x%), Reservoirs_mean=..."
+```
+
+MetroPT-3 데이터셋에 실패 케이스가 2건뿐이라 문서도 2건이다.
+
+---
+
+### 타입 3: `alarm_event` — 20건
+
+**생성 방식: 센서 데이터 → 규칙 기반 자동 생성**
+
+`features.pkl`에서 `LPS_rate > 0.5` (10분 윈도우에서 저압 알람이 50% 이상 발생)인 구간을 찾아 인접한 구간끼리 묶고, 각 구간을 텍스트 문서로 변환한다. 최대 20개.
+
+```
+조건: LPS_rate > 0.5 인 윈도우 → 인접 구간 묶기 (간격 700초 이내)
+
+출력: "[LPS 저압 알람 구간 #1] 기간: 2020-04-18 06:00 ~ ... |
+       TP3=8.xxx bar, Reservoirs=8.xxx bar, Motor_current=x.xxx A |
+       저압 알람 지속 시간: N분"
+```
+
+**이 방식을 쓴 이유**: `maintenance_report`가 2건뿐이어서 `search_similar_failures`로 검색할 과거 사례가 부족하기 때문이다. LPS 알람이 Air Leak 발생 시 나타나는 신호이므로 "비슷한 증상이 있었던 과거 구간"으로 활용한다.
+
+**한계**: 이 문서에는 라벨이 없다. LPS 알람이 실제 실패 때문인지, 단순 압력 변동인지 문서 자체가 구분하지 않는다. LLM이 이를 "과거 실패 사례"로 오해할 수 있다.
+
+이 패턴은 실제로도 쓰인다 — 구조화된 알람 로그나 이벤트 로그를 자연어로 변환해 RAG에 넣는 방식(data-to-text)은 ERP/SCADA 시스템에서 관찰된다. 단, 실제 시스템에서는 각 이벤트에 정비 결과 라벨이 붙어있어 이 한계가 없다.
+
+---
+
+### 전체 구성 요약
+
+| 타입 | 건수 | 출처 | 신뢰도 |
+|------|------|------|--------|
+| `domain_knowledge` | 13 | 수동 작성 (논문/데이터셋 설명 기반) | 낮음 — 실제 매뉴얼 아님 |
+| `maintenance_report` | 2 | 실제 정비 기록 + 센서 요약 자동 계산 | 높음 — 실제 데이터 |
+| `alarm_event` | 20 | LPS 알람 구간 규칙 기반 자동 생성 | 중간 — 라벨 없음 |
+
+**RAG 품질의 핵심 병목은 `maintenance_report` 2건이다.** 실제 프로젝트였다면 수년치 정비 보고서가 수백~수천 건 있어야 할 위치다.
 
 정비 기록 수가 적을 때 (수십 건):
 - FAISS 인메모리 벡터 DB로 충분
@@ -273,3 +332,113 @@ Step 3 에이전트:
 
 *데이터셋 정보: docs/step3_dataset_candidates.md*
 *산업계 사례: docs/industry_cases.md*
+
+---
+
+## 11. 워크플로우 선택 방식
+
+### 에이전트가 툴을 선택하는 주체는 LLM이다
+
+```python
+# agent.py
+response = self.client.chat.completions.create(
+    model="gpt-4o",
+    tools=TOOL_SCHEMAS,
+    tool_choice="auto",   # ← LLM이 자율 결정
+)
+```
+
+`tool_choice="auto"` → LLM이 매 라운드마다 "다음에 어떤 툴을 호출할지", "인자를 어떻게 채울지"를 스스로 결정한다. 코드 레벨에서 하드코딩된 툴 호출 순서는 없다.
+
+### 단, 시스템 프롬프트로 행동을 강제한다
+
+SYSTEM_PROMPT에 4단계 순서가 명시되어 있고, 이탈을 금지하는 규칙이 포함되어 있다:
+
+```
+1단계: detect_anomaly 호출 (항상 필수)
+         → 이상 감지 시에만: classify_failure_type 호출
+2단계: 가설 수립 + search_domain_knowledge 호출
+3단계: get_sensor_trend + RAG 검색 툴 중 하나 이상 호출 (둘 다 필수)
+4단계: 결론
+
+"센서만으로 결론을 내리는 것은 허용되지 않습니다."
+"이벤트 로그 검색 없이 결론을 내리는 것은 허용되지 않습니다."
+```
+
+`classify_failure_type`은 툴 설명 자체에 "이상이 감지된 경우"라는 조건이 명시되어 있다. 따라서 정상 구간을 분석할 때는 LLM이 이 툴을 건너뛴다. Round 1에서 두 Group A 툴이 항상 함께 호출되는 것이 아니다.
+
+### 정상 판정 시 이후 단계 전체가 스킵된다
+
+시스템 프롬프트의 2단계가 "**이상이 감지되면** 가능한 원인을 가설로 세우십시오"로 시작한다. 3단계(센서 검증 + RAG 검색)와 4단계(결론)는 모두 이 가설에서 파생되므로, `detect_anomaly`가 정상을 반환하면 LLM은 이후 툴을 전혀 호출하지 않고 바로 "정상" 결론을 반환한다.
+
+"이벤트 로그 검색 없이 결론 금지" 규칙도 "가설을 검증할 때"가 전제이므로 정상 구간에서는 적용되지 않는다.
+
+다만 이는 코드로 강제된 분기가 아니라 LLM이 프롬프트를 해석하는 결과다. 명시적인 `if is_anomaly: ... else: return` 구조가 에이전트 코드에 없으므로, LLM 응답에 따라 정상 구간에서도 RAG를 추가 호출할 가능성이 이론상 존재한다.
+
+즉, 구조는 **소프트 강제(soft-constrained) LLM 선택**이다:
+- 툴 선택의 주체 = LLM (하드코딩 아님)
+- 특정 툴의 필수 호출 여부 = 프롬프트로 강제
+- 툴 인자(timestamp, query 등) = LLM이 자유롭게 생성
+- 루프 종료 시점 = LLM이 `finish_reason="stop"` 반환할 때까지 자율 결정
+
+### 사용자 입력 방식 (app.py)
+
+사용자가 선택하는 것은 **분석할 타임스탬프 하나뿐**이다.
+
+| 입력 방법 | 내용 |
+|----------|------|
+| 직접 입력 | 텍스트 박스에 `YYYY-MM-DD HH:MM:SS` 형식으로 입력 |
+| 랜덤(이상) 버튼 | `labels != "normal"` 인덱스에서 무작위 샘플링 |
+| 랜덤(정상) 버튼 | `labels == "normal"` 인덱스에서 무작위 샘플링 |
+
+타임스탬프가 결정되면 이후 모든 툴 호출과 추론은 에이전트가 자율 실행한다. 중간에 사용자가 개입하는 선택지는 없다.
+
+---
+
+## 12. 계획 대비 실제 구현 불일치
+
+### 툴 목록
+
+| 계획 (Section 4) | 실제 구현 | 상태 |
+|-----------------|----------|------|
+| Group A: `detect_anomaly` | 구현됨 | ✅ |
+| Group A: `classify_failure_type` | 구현됨 | ✅ |
+| Group A: `get_sensor_trend` | 구현됨 (Group C 흡수) | ✅ |
+| Group B: `search_maintenance_log` | 구현됨 | ✅ |
+| Group B: `get_recent_events` | 구현됨 | ✅ |
+| Group B: `search_similar_failures` | 구현됨 | ✅ |
+| Group C: `get_pressure_stats` | **미구현** — `get_sensor_trend`로 통합 | ❌ |
+| Group C: `get_temperature_stats` | **미구현** — `get_sensor_trend`로 통합 | ❌ |
+| Group C: `get_electrical_stats` | **미구현** — `get_sensor_trend`로 통합 | ❌ |
+| Group C: `get_airflow_stats` | **미구현** — `get_sensor_trend`로 통합 | ❌ |
+| (계획 없음) | `search_domain_knowledge` 추가 | ➕ |
+
+Group C 통계 툴 4개는 `get_sensor_trend` 하나로 통합 구현됐다. 센서 그룹별로 분리하는 대신 주요 7개 센서를 한 번에 반환하는 구조.
+
+### RAG 구현 방식
+
+| 계획 | 실제 구현 |
+|------|----------|
+| langchain 사용 (`langchain.vectorstores.FAISS`, `langchain.embeddings.OpenAIEmbeddings`) | raw FAISS + OpenAI API 직접 호출 (langchain 미사용) |
+
+### 데이터 및 이벤트
+
+| 계획 | 실제 구현 |
+|------|----------|
+| `step3_metropt_agent/data/` 폴더에 데이터 저장 | `data/metropt+3+dataset/` (프로젝트 루트) |
+| `maintenance_reports/failures_uci.json`, `failures_zenodo.json` 분리 | `models/failure_events.json` 단일 파일 |
+| Zenodo 3개 케이스 포함 | MetroPT-3 UCI 2개 케이스만 (`F1: Air_Leak/Clients`, `F2: Air_Leak/Air_Dryer`) |
+
+### ML 모델
+
+| 계획 (Section 6) | 실제 구현 |
+|-----------------|----------|
+| 정상/이상 분류기 | 구현됨 (`anomaly_detector.pkl`) |
+| 실패 유형 분류기 | 구현됨 (`failure_classifier.pkl`) |
+| 이상 시점 탐지 (슬라이딩 윈도우) | **미구현** |
+| (계획 없음) | `pre_labels.pkl` 추가 (3-class: normal/Air_Leak_Clients/Air_Leak_Air_Dryer) |
+
+### 구현 순서 ⑦ ablation
+
+계획의 마지막 단계인 "RAG 있을 때 vs 없을 때 LLM 추론 품질 비교" ablation은 **미구현**.
+

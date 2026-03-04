@@ -29,8 +29,12 @@ def load_artifacts():
         with open(os.path.join(MODELS_DIR, name), "rb") as f:
             return pickle.load(f)
 
-    import faiss
-    index = faiss.read_index(os.path.join(VECTORSTORE_DIR, "index.faiss"))
+    import faiss, tempfile, shutil
+    tmp_dir = tempfile.mkdtemp()
+    tmp_faiss = os.path.join(tmp_dir, "index.faiss")
+    shutil.copy(os.path.join(VECTORSTORE_DIR, "index.faiss"), tmp_faiss)
+    index = faiss.read_index(tmp_faiss)
+    shutil.rmtree(tmp_dir, ignore_errors=True)
     with open(os.path.join(VECTORSTORE_DIR, "documents.pkl"), "rb") as f:
         documents = pickle.load(f)
 

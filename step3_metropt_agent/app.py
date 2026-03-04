@@ -15,10 +15,14 @@ MODELS_DIR = os.path.join(os.path.dirname(__file__), "models")
 
 # 실패 이벤트 (사이드바 정답 표시용)
 FAILURE_EVENTS = [
-    {"id": "F1", "type": "Air_Leak", "component": "Clients",
-     "start": "2020-04-18 00:00:00", "end": "2020-04-18 23:59:59"},
-    {"id": "F2", "type": "Air_Leak", "component": "Air_Dryer",
-     "start": "2020-05-29 00:00:00", "end": "2020-05-29 23:59:59"},
+    {"id": "F1", "type": "Air_Leak", "component": "Unknown",
+     "start": "2020-04-18 00:00:00", "end": "2020-04-18 23:59:00"},
+    {"id": "F2", "type": "Air_Leak", "component": "Unknown",
+     "start": "2020-05-29 23:30:00", "end": "2020-05-30 06:00:00"},
+    {"id": "F3", "type": "Air_Leak", "component": "Unknown",
+     "start": "2020-06-05 10:00:00", "end": "2020-06-07 14:30:00"},
+    {"id": "F4", "type": "Air_Leak", "component": "Unknown",
+     "start": "2020-07-15 14:30:00", "end": "2020-07-15 19:00:00"},
 ]
 
 TOOL_DESCRIPTIONS = {
