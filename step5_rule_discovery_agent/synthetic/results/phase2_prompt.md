@@ -1,0 +1,2506 @@
+# Phase 2: 규칙 발견 — LLM 주도 분석
+
+## 역할
+
+당신은 B2B 자재 발주 데이터에서 반복 패턴을 발견하는 분석 전문가입니다.
+
+## 상황
+
+Phase 1 통계 도구(`phase1_generic.py`)가 8개 레이어의 분석을 수행하여
+아래에 raw JSON 결과를 생성했습니다.
+
+**당신의 역할**: 이 통계 결과를 해석하여 "어떤 신호가 의미 있는지" 스스로 판단하고,
+필요하면 원본 CSV 데이터를 직접 조회하여 심층 분석한 뒤, 최종 규칙을 작성하세요.
+
+## 작업 단계
+
+### 1단계: 통계 결과 해석
+아래 JSON을 읽고, 각 분석 레이어에서 **당신이 보기에 의미 있는 신호**를 식별하세요.
+어떤 임계값을 쓸지, 어떤 신호를 무시할지는 당신이 판단합니다.
+
+### 2단계: 방향 결정 및 심층 조사
+1단계에서 발견한 신호 중 더 파볼 것이 있으면,
+아래 '데이터 접근' 섹션의 CSV 파일을 Read 도구로 직접 조회하세요.
+예: "이 고객의 실제 발주 날짜를 확인하고 싶다" → orders.csv를 Read
+
+### 3단계: 규칙 작성
+1~2단계를 거쳐 발견한 패턴을 규칙으로 정리하세요.
+
+## 규칙 발견 가이드
+
+다음 유형의 패턴을 찾아보세요:
+1. **주기적 발주**: 특정 고객-품목 조합이 일정 주기로 반복
+2. **계절성**: 특정 시기에 수량이 증가하거나 감소
+3. **교차 발주**: 고객 A 발주 후 고객 B가 따라서 발주
+4. **동반 발주**: 특정 품목들이 같은 시점에 함께 주문
+5. **이벤트 트리거**: 견적요청/샘플요청 후 발주로 이어지는 패턴
+6. **조건부 발주**: 특정 조건(대형 발주, 특정 품목) 후 후속 발주
+7. **추세 변화(drift)**: 발주 간격이나 수량이 시간에 따라 변화
+8. **예외 패턴**: 공휴일, 특수 상황에서의 발주 시점 이동
+
+## 주의사항
+
+- 근거 없는 규칙을 만들지 마세요. 통계 수치로 뒷받침되지 않으면 '추가 관찰 필요'로 표시하세요.
+- 너무 당연한 규칙(예: '대성기업은 자주 주문한다')은 피하세요.
+- 규칙마다 confidence를 0.0~1.0으로 매기되, 표본 수가 적으면 낮게 주세요.
+- **어떤 신호를 왜 중요하다고 판단했는지** 근거를 evidence에 남기세요.
+
+---
+
+## Phase 1 통계 결과 (Raw JSON)
+
+아래는 `phase1_generic.py`가 출력한 전체 결과입니다.
+필터링이나 가공 없이 그대로 제공합니다. 해석은 당신이 하세요.
+
+```json
+{
+  "schema": {
+    "rows": 175,
+    "date_range": [
+      "2025-04-02",
+      "2026-03-26"
+    ],
+    "customers": [
+      "대성기업",
+      "동아전자",
+      "명성산업",
+      "삼호금속",
+      "세진테크",
+      "우진소재",
+      "태광스틸",
+      "한진산업"
+    ],
+    "items": [
+      "AL5052",
+      "AL6061",
+      "CARBON_STEEL",
+      "CU_PIPE",
+      "CU_PLATE",
+      "GASKET_A",
+      "PIPE_SCH40",
+      "PTFE_SHEET",
+      "SS_BOLT_M10",
+      "SS_NUT_M10",
+      "STS304",
+      "STS316"
+    ],
+    "n_customers": 8,
+    "n_items": 12
+  },
+  "basic_distribution": {
+    "customer_order_counts": {
+      "대성기업": 33,
+      "명성산업": 27,
+      "한진산업": 25,
+      "우진소재": 20,
+      "태광스틸": 19,
+      "삼호금속": 19,
+      "세진테크": 17,
+      "동아전자": 15
+    },
+    "item_order_counts": {
+      "AL6061": 38,
+      "STS304": 22,
+      "STS316": 20,
+      "PIPE_SCH40": 20,
+      "CARBON_STEEL": 20,
+      "AL5052": 12,
+      "CU_PLATE": 9,
+      "CU_PIPE": 9,
+      "GASKET_A": 9,
+      "SS_NUT_M10": 6,
+      "PTFE_SHEET": 5,
+      "SS_BOLT_M10": 5
+    },
+    "quantity_stats": {
+      "mean": 59.8,
+      "median": 44.0,
+      "std": 58.4,
+      "min": 6,
+      "max": 328
+    }
+  },
+  "interval_analysis": {
+    "대성기업/AL6061": {
+      "customer": "대성기업",
+      "item": "AL6061",
+      "count": 30,
+      "mean_interval": 12.2,
+      "std_interval": 5.4,
+      "median_interval": 14.0,
+      "cv": 0.45,
+      "min_interval": 0,
+      "max_interval": 22,
+      "intervals": [
+        15,
+        14,
+        13,
+        14,
+        14,
+        1,
+        14,
+        13,
+        0,
+        13,
+        15,
+        15,
+        17,
+        4,
+        10,
+        15,
+        10,
+        6,
+        15,
+        3,
+        16,
+        8,
+        11,
+        17,
+        8,
+        11,
+        20,
+        21,
+        22
+      ]
+    },
+    "동아전자/GASKET_A": {
+      "customer": "동아전자",
+      "item": "GASKET_A",
+      "count": 4,
+      "mean_interval": 92.7,
+      "std_interval": 31.5,
+      "median_interval": 91.0,
+      "cv": 0.34,
+      "min_interval": 55,
+      "max_interval": 132,
+      "intervals": [
+        132,
+        55,
+        91
+      ]
+    },
+    "동아전자/SS_BOLT_M10": {
+      "customer": "동아전자",
+      "item": "SS_BOLT_M10",
+      "count": 3,
+      "mean_interval": 164.5,
+      "std_interval": 56.5,
+      "median_interval": 164.5,
+      "cv": 0.34,
+      "min_interval": 108,
+      "max_interval": 221,
+      "intervals": [
+        108,
+        221
+      ]
+    },
+    "명성산업/CARBON_STEEL": {
+      "customer": "명성산업",
+      "item": "CARBON_STEEL",
+      "count": 11,
+      "mean_interval": 32.5,
+      "std_interval": 15.7,
+      "median_interval": 30.5,
+      "cv": 0.48,
+      "min_interval": 14,
+      "max_interval": 60,
+      "intervals": [
+        60,
+        31,
+        16,
+        16,
+        48,
+        18,
+        14,
+        44,
+        48,
+        30
+      ]
+    },
+    "명성산업/PIPE_SCH40": {
+      "customer": "명성산업",
+      "item": "PIPE_SCH40",
+      "count": 14,
+      "mean_interval": 27.2,
+      "std_interval": 17.1,
+      "median_interval": 28.0,
+      "cv": 0.63,
+      "min_interval": 4,
+      "max_interval": 63,
+      "intervals": [
+        28,
+        14,
+        16,
+        33,
+        63,
+        15,
+        62,
+        14,
+        28,
+        4,
+        17,
+        31,
+        28
+      ]
+    },
+    "삼호금속/AL5052": {
+      "customer": "삼호금속",
+      "item": "AL5052",
+      "count": 3,
+      "mean_interval": 127.0,
+      "std_interval": 66.0,
+      "median_interval": 127.0,
+      "cv": 0.52,
+      "min_interval": 61,
+      "max_interval": 193,
+      "intervals": [
+        193,
+        61
+      ]
+    },
+    "삼호금속/CU_PLATE": {
+      "customer": "삼호금속",
+      "item": "CU_PLATE",
+      "count": 3,
+      "mean_interval": 82.5,
+      "std_interval": 68.5,
+      "median_interval": 82.5,
+      "cv": 0.83,
+      "min_interval": 14,
+      "max_interval": 151,
+      "intervals": [
+        151,
+        14
+      ]
+    },
+    "삼호금속/STS316": {
+      "customer": "삼호금속",
+      "item": "STS316",
+      "count": 4,
+      "mean_interval": 94.0,
+      "std_interval": 48.0,
+      "median_interval": 70.0,
+      "cv": 0.51,
+      "min_interval": 51,
+      "max_interval": 161,
+      "intervals": [
+        70,
+        51,
+        161
+      ]
+    },
+    "세진테크/AL5052": {
+      "customer": "세진테크",
+      "item": "AL5052",
+      "count": 4,
+      "mean_interval": 91.0,
+      "std_interval": 0.0,
+      "median_interval": 91.0,
+      "cv": 0.0,
+      "min_interval": 91,
+      "max_interval": 91,
+      "intervals": [
+        91,
+        91,
+        91
+      ]
+    },
+    "세진테크/CARBON_STEEL": {
+      "customer": "세진테크",
+      "item": "CARBON_STEEL",
+      "count": 4,
+      "mean_interval": 91.0,
+      "std_interval": 0.0,
+      "median_interval": 91.0,
+      "cv": 0.0,
+      "min_interval": 91,
+      "max_interval": 91,
+      "intervals": [
+        91,
+        91,
+        91
+      ]
+    },
+    "세진테크/STS304": {
+      "customer": "세진테크",
+      "item": "STS304",
+      "count": 4,
+      "mean_interval": 91.0,
+      "std_interval": 0.0,
+      "median_interval": 91.0,
+      "cv": 0.0,
+      "min_interval": 91,
+      "max_interval": 91,
+      "intervals": [
+        91,
+        91,
+        91
+      ]
+    },
+    "세진테크/STS316": {
+      "customer": "세진테크",
+      "item": "STS316",
+      "count": 3,
+      "mean_interval": 136.5,
+      "std_interval": 45.5,
+      "median_interval": 136.5,
+      "cv": 0.33,
+      "min_interval": 91,
+      "max_interval": 182,
+      "intervals": [
+        182,
+        91
+      ]
+    },
+    "우진소재/AL6061": {
+      "customer": "우진소재",
+      "item": "AL6061",
+      "count": 3,
+      "mean_interval": 106.0,
+      "std_interval": 73.0,
+      "median_interval": 106.0,
+      "cv": 0.69,
+      "min_interval": 33,
+      "max_interval": 179,
+      "intervals": [
+        179,
+        33
+      ]
+    },
+    "우진소재/CU_PLATE": {
+      "customer": "우진소재",
+      "item": "CU_PLATE",
+      "count": 6,
+      "mean_interval": 60.4,
+      "std_interval": 50.6,
+      "median_interval": 32.0,
+      "cv": 0.84,
+      "min_interval": 6,
+      "max_interval": 123,
+      "intervals": [
+        123,
+        32,
+        21,
+        6,
+        120
+      ]
+    },
+    "우진소재/STS316": {
+      "customer": "우진소재",
+      "item": "STS316",
+      "count": 8,
+      "mean_interval": 50.1,
+      "std_interval": 44.3,
+      "median_interval": 35.0,
+      "cv": 0.88,
+      "min_interval": 7,
+      "max_interval": 122,
+      "intervals": [
+        14,
+        41,
+        114,
+        35,
+        18,
+        7,
+        122
+      ]
+    },
+    "태광스틸/AL6061": {
+      "customer": "태광스틸",
+      "item": "AL6061",
+      "count": 3,
+      "mean_interval": 65.0,
+      "std_interval": 30.0,
+      "median_interval": 65.0,
+      "cv": 0.46,
+      "min_interval": 35,
+      "max_interval": 95,
+      "intervals": [
+        95,
+        35
+      ]
+    },
+    "태광스틸/PIPE_SCH40": {
+      "customer": "태광스틸",
+      "item": "PIPE_SCH40",
+      "count": 3,
+      "mean_interval": 132.5,
+      "std_interval": 52.5,
+      "median_interval": 132.5,
+      "cv": 0.4,
+      "min_interval": 80,
+      "max_interval": 185,
+      "intervals": [
+        185,
+        80
+      ]
+    },
+    "태광스틸/STS304": {
+      "customer": "태광스틸",
+      "item": "STS304",
+      "count": 4,
+      "mean_interval": 58.7,
+      "std_interval": 41.8,
+      "median_interval": 54.0,
+      "cv": 0.71,
+      "min_interval": 10,
+      "max_interval": 112,
+      "intervals": [
+        112,
+        54,
+        10
+      ]
+    },
+    "한진산업/CU_PIPE": {
+      "customer": "한진산업",
+      "item": "CU_PIPE",
+      "count": 6,
+      "mean_interval": 53.4,
+      "std_interval": 39.7,
+      "median_interval": 30.0,
+      "cv": 0.74,
+      "min_interval": 20,
+      "max_interval": 127,
+      "intervals": [
+        27,
+        127,
+        20,
+        30,
+        63
+      ]
+    },
+    "한진산업/STS304": {
+      "customer": "한진산업",
+      "item": "STS304",
+      "count": 12,
+      "mean_interval": 30.5,
+      "std_interval": 6.2,
+      "median_interval": 28.0,
+      "cv": 0.2,
+      "min_interval": 21,
+      "max_interval": 42,
+      "intervals": [
+        35,
+        28,
+        28,
+        28,
+        36,
+        34,
+        21,
+        28,
+        42,
+        21,
+        35
+      ]
+    },
+    "한진산업/STS316": {
+      "customer": "한진산업",
+      "item": "STS316",
+      "count": 3,
+      "mean_interval": 130.0,
+      "std_interval": 73.0,
+      "median_interval": 130.0,
+      "cv": 0.56,
+      "min_interval": 57,
+      "max_interval": 203,
+      "intervals": [
+        203,
+        57
+      ]
+    }
+  },
+  "time_patterns": {
+    "monthly": {
+      "2025-04": {
+        "orders": 17,
+        "total_qty": 1543
+      },
+      "2025-05": {
+        "orders": 14,
+        "total_qty": 749
+      },
+      "2025-06": {
+        "orders": 14,
+        "total_qty": 661
+      },
+      "2025-07": {
+        "orders": 14,
+        "total_qty": 1196
+      },
+      "2025-08": {
+        "orders": 11,
+        "total_qty": 537
+      },
+      "2025-09": {
+        "orders": 11,
+        "total_qty": 431
+      },
+      "2025-10": {
+        "orders": 22,
+        "total_qty": 1619
+      },
+      "2025-11": {
+        "orders": 21,
+        "total_qty": 832
+      },
+      "2025-12": {
+        "orders": 13,
+        "total_qty": 528
+      },
+      "2026-01": {
+        "orders": 16,
+        "total_qty": 1133
+      },
+      "2026-02": {
+        "orders": 10,
+        "total_qty": 488
+      },
+      "2026-03": {
+        "orders": 12,
+        "total_qty": 747
+      }
+    },
+    "customer_time_concentration": {
+      "우진소재": {
+        "weekday_concentration": 0.03,
+        "dominant_weekday": "월",
+        "week_of_month_concentration": 0.04,
+        "dominant_week": "W1",
+        "month_concentration": 0.06,
+        "active_months": [
+          1,
+          3,
+          4,
+          5,
+          6,
+          8,
+          9,
+          10,
+          11
+        ],
+        "weekday_dist": {
+          "월": 6,
+          "화": 5,
+          "수": 3,
+          "금": 3,
+          "목": 3
+        },
+        "week_dist": {
+          "W1": 7,
+          "W2": 6,
+          "W3": 4,
+          "W4": 3
+        }
+      },
+      "대성기업": {
+        "weekday_concentration": 0.1,
+        "dominant_weekday": "목",
+        "week_of_month_concentration": 0.07,
+        "dominant_week": "W2",
+        "month_concentration": 0.03,
+        "active_months": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ],
+        "weekday_dist": {
+          "목": 11,
+          "금": 10,
+          "월": 7,
+          "화": 3,
+          "수": 2
+        },
+        "week_dist": {
+          "W2": 10,
+          "W1": 9,
+          "W4": 7,
+          "W3": 5,
+          "W5": 2
+        }
+      },
+      "한진산업": {
+        "weekday_concentration": 0.26,
+        "dominant_weekday": "월",
+        "week_of_month_concentration": 0.24,
+        "dominant_week": "W1",
+        "month_concentration": 0.04,
+        "active_months": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ],
+        "weekday_dist": {
+          "월": 14,
+          "화": 5,
+          "수": 4,
+          "금": 1,
+          "목": 1
+        },
+        "week_dist": {
+          "W1": 11,
+          "W2": 11,
+          "W3": 2,
+          "W4": 1
+        }
+      },
+      "명성산업": {
+        "weekday_concentration": 0.17,
+        "dominant_weekday": "월",
+        "week_of_month_concentration": 0.01,
+        "dominant_week": "W4",
+        "month_concentration": 0.01,
+        "active_months": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ],
+        "weekday_dist": {
+          "월": 14,
+          "목": 5,
+          "수": 3,
+          "금": 3,
+          "화": 2
+        },
+        "week_dist": {
+          "W4": 8,
+          "W1": 7,
+          "W2": 7,
+          "W3": 5
+        }
+      },
+      "태광스틸": {
+        "weekday_concentration": 0.17,
+        "dominant_weekday": "월",
+        "week_of_month_concentration": 0.1,
+        "dominant_week": "W2",
+        "month_concentration": 0.05,
+        "active_months": [
+          1,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ],
+        "weekday_dist": {
+          "월": 9,
+          "목": 5,
+          "수": 2,
+          "금": 2,
+          "화": 1
+        },
+        "week_dist": {
+          "W2": 6,
+          "W1": 6,
+          "W4": 4,
+          "W5": 2,
+          "W3": 1
+        }
+      },
+      "세진테크": {
+        "weekday_concentration": 0.24,
+        "dominant_weekday": "화",
+        "week_of_month_concentration": 0.21,
+        "dominant_week": "W2",
+        "month_concentration": 0.04,
+        "active_months": [
+          1,
+          2,
+          4,
+          5,
+          7,
+          10,
+          11
+        ],
+        "weekday_dist": {
+          "화": 8,
+          "월": 7,
+          "금": 1,
+          "목": 1
+        },
+        "week_dist": {
+          "W2": 9,
+          "W3": 7,
+          "W1": 1
+        }
+      },
+      "동아전자": {
+        "weekday_concentration": 0.18,
+        "dominant_weekday": "월",
+        "week_of_month_concentration": 0.09,
+        "dominant_week": "W4",
+        "month_concentration": 0.05,
+        "active_months": [
+          2,
+          3,
+          4,
+          6,
+          8,
+          9,
+          10,
+          12
+        ],
+        "weekday_dist": {
+          "월": 8,
+          "수": 2,
+          "목": 2,
+          "화": 2,
+          "금": 1
+        },
+        "week_dist": {
+          "W4": 7,
+          "W3": 3,
+          "W2": 3,
+          "W1": 2
+        }
+      },
+      "삼호금속": {
+        "weekday_concentration": 0.18,
+        "dominant_weekday": "월",
+        "week_of_month_concentration": 0.1,
+        "dominant_week": "W4",
+        "month_concentration": 0.03,
+        "active_months": [
+          1,
+          2,
+          4,
+          5,
+          6,
+          7,
+          9,
+          10,
+          11,
+          12
+        ],
+        "weekday_dist": {
+          "월": 9,
+          "수": 4,
+          "금": 4,
+          "목": 1,
+          "화": 1
+        },
+        "week_dist": {
+          "W4": 6,
+          "W1": 6,
+          "W3": 4,
+          "W2": 2,
+          "W5": 1
+        }
+      }
+    }
+  },
+  "quantity_patterns": {
+    "대성기업/AL6061": {
+      "count": 30,
+      "mean": 47.6,
+      "std": 14.0,
+      "cv": 0.29,
+      "min": 19,
+      "max": 76,
+      "values": [
+        19,
+        27,
+        30,
+        30,
+        31,
+        32,
+        33,
+        35,
+        37,
+        42,
+        44,
+        44,
+        45,
+        46,
+        47,
+        47,
+        48,
+        51,
+        51,
+        54,
+        56,
+        56,
+        58,
+        58,
+        63,
+        65,
+        66,
+        68,
+        69,
+        76
+      ],
+      "bimodal_score": 1.65
+    },
+    "명성산업/CARBON_STEEL": {
+      "count": 11,
+      "mean": 78.7,
+      "std": 9.3,
+      "cv": 0.12,
+      "min": 65,
+      "max": 93,
+      "values": [
+        65,
+        68,
+        70,
+        71,
+        73,
+        81,
+        82,
+        84,
+        88,
+        91,
+        93
+      ],
+      "bimodal_score": 1.74
+    },
+    "명성산업/PIPE_SCH40": {
+      "count": 14,
+      "mean": 14.9,
+      "std": 1.8,
+      "cv": 0.12,
+      "min": 13,
+      "max": 19,
+      "values": [
+        13,
+        13,
+        13,
+        13,
+        13,
+        14,
+        15,
+        15,
+        16,
+        16,
+        16,
+        16,
+        17,
+        19
+      ],
+      "bimodal_score": 1.7
+    },
+    "우진소재/CU_PLATE": {
+      "count": 6,
+      "mean": 54.7,
+      "std": 15.2,
+      "cv": 0.28,
+      "min": 38,
+      "max": 77,
+      "values": [
+        38,
+        40,
+        42,
+        65,
+        66,
+        77
+      ],
+      "bimodal_score": 1.93
+    },
+    "우진소재/STS316": {
+      "count": 8,
+      "mean": 52.4,
+      "std": 20.7,
+      "cv": 0.39,
+      "min": 26,
+      "max": 84,
+      "values": [
+        26,
+        28,
+        35,
+        52,
+        54,
+        60,
+        80,
+        84
+      ],
+      "bimodal_score": 1.66
+    },
+    "한진산업/CU_PIPE": {
+      "count": 6,
+      "mean": 20.5,
+      "std": 1.7,
+      "cv": 0.08,
+      "min": 17,
+      "max": 22,
+      "values": [
+        17,
+        20,
+        21,
+        21,
+        22,
+        22
+      ],
+      "bimodal_score": 1.32
+    },
+    "한진산업/STS304": {
+      "count": 12,
+      "mean": 117.2,
+      "std": 29.8,
+      "cv": 0.25,
+      "min": 77,
+      "max": 174,
+      "values": [
+        77,
+        80,
+        91,
+        91,
+        111,
+        113,
+        114,
+        114,
+        134,
+        149,
+        158,
+        174
+      ],
+      "bimodal_score": 1.57
+    }
+  },
+  "gmm_mixture": {
+    "대성기업/AL6061": {
+      "trigger": "bimodal=1.65",
+      "n_components": 2,
+      "bic_scores": {
+        "1": 187.4,
+        "2": 192.5,
+        "3": 202.4
+      },
+      "components": [
+        {
+          "id": 0,
+          "mean": 14.2,
+          "std": 3.5,
+          "count": 24,
+          "pct": 82.8,
+          "indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            6,
+            7,
+            9,
+            10,
+            11,
+            12,
+            14,
+            15,
+            16,
+            18,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "values": [
+            15,
+            14,
+            13,
+            14,
+            14,
+            14,
+            13,
+            13,
+            15,
+            15,
+            17,
+            10,
+            15,
+            10,
+            15,
+            16,
+            8,
+            11,
+            17,
+            8,
+            11,
+            20,
+            21,
+            22
+          ]
+        },
+        {
+          "id": 1,
+          "mean": 2.8,
+          "std": 2.1,
+          "count": 5,
+          "pct": 17.2,
+          "indices": [
+            5,
+            8,
+            13,
+            17,
+            19
+          ],
+          "values": [
+            1,
+            0,
+            4,
+            6,
+            3
+          ]
+        }
+      ],
+      "labels": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "명성산업/CARBON_STEEL": {
+      "trigger": "bimodal=1.74",
+      "n_components": 2,
+      "bic_scores": {
+        "1": 88.1,
+        "2": 90.9
+      },
+      "components": [
+        {
+          "id": 0,
+          "mean": 20.8,
+          "std": 6.9,
+          "count": 6,
+          "pct": 60.0,
+          "indices": [
+            1,
+            2,
+            3,
+            5,
+            6,
+            9
+          ],
+          "values": [
+            31,
+            16,
+            16,
+            18,
+            14,
+            30
+          ]
+        },
+        {
+          "id": 1,
+          "mean": 50.0,
+          "std": 6.0,
+          "count": 4,
+          "pct": 40.0,
+          "indices": [
+            0,
+            4,
+            7,
+            8
+          ],
+          "values": [
+            60,
+            48,
+            44,
+            48
+          ]
+        }
+      ],
+      "labels": [
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0
+      ]
+    },
+    "명성산업/PIPE_SCH40": {
+      "trigger": "CV=0.63",
+      "n_components": 3,
+      "bic_scores": {
+        "1": 115.9,
+        "2": 106.0,
+        "3": 105.7
+      },
+      "components": [
+        {
+          "id": 2,
+          "mean": 13.3,
+          "std": 4.3,
+          "count": 6,
+          "pct": 46.2,
+          "indices": [
+            1,
+            2,
+            5,
+            7,
+            9,
+            10
+          ],
+          "values": [
+            14,
+            16,
+            15,
+            14,
+            4,
+            17
+          ]
+        },
+        {
+          "id": 1,
+          "mean": 29.6,
+          "std": 2.1,
+          "count": 5,
+          "pct": 38.5,
+          "indices": [
+            0,
+            3,
+            8,
+            11,
+            12
+          ],
+          "values": [
+            28,
+            33,
+            28,
+            31,
+            28
+          ]
+        },
+        {
+          "id": 0,
+          "mean": 62.5,
+          "std": 0.5,
+          "count": 2,
+          "pct": 15.4,
+          "indices": [
+            4,
+            6
+          ],
+          "values": [
+            63,
+            62
+          ]
+        }
+      ],
+      "labels": [
+        1,
+        2,
+        2,
+        1,
+        0,
+        2,
+        0,
+        2,
+        1,
+        2,
+        2,
+        1,
+        1
+      ]
+    },
+    "우진소재/STS316": {
+      "trigger": "CV=0.88",
+      "n_components": 1,
+      "bic_scores": {
+        "1": 76.8
+      },
+      "components": [
+        {
+          "id": 0,
+          "mean": 50.1,
+          "std": 44.3,
+          "count": 7,
+          "pct": 100.0,
+          "indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "values": [
+            14,
+            41,
+            114,
+            35,
+            18,
+            7,
+            122
+          ]
+        }
+      ],
+      "labels": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "한진산업/STS304": {
+      "trigger": "bimodal=1.57",
+      "n_components": 2,
+      "bic_scores": {
+        "1": 76.1,
+        "2": 82.7
+      },
+      "components": [
+        {
+          "id": 1,
+          "mean": 25.7,
+          "std": 3.3,
+          "count": 6,
+          "pct": 54.5,
+          "indices": [
+            1,
+            2,
+            3,
+            6,
+            7,
+            9
+          ],
+          "values": [
+            28,
+            28,
+            28,
+            21,
+            28,
+            21
+          ]
+        },
+        {
+          "id": 0,
+          "mean": 36.4,
+          "std": 2.9,
+          "count": 5,
+          "pct": 45.5,
+          "indices": [
+            0,
+            4,
+            5,
+            8,
+            10
+          ],
+          "values": [
+            35,
+            36,
+            34,
+            42,
+            35
+          ]
+        }
+      ],
+      "labels": [
+        0,
+        1,
+        1,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0
+      ]
+    }
+  },
+  "co_occurrence": [
+    {
+      "item_a": "CARBON_STEEL",
+      "item_b": "STS304",
+      "count": 6,
+      "support": 0.043
+    },
+    {
+      "item_a": "CU_PIPE",
+      "item_b": "STS304",
+      "count": 6,
+      "support": 0.043
+    },
+    {
+      "item_a": "AL5052",
+      "item_b": "CARBON_STEEL",
+      "count": 5,
+      "support": 0.035
+    },
+    {
+      "item_a": "AL5052",
+      "item_b": "STS304",
+      "count": 4,
+      "support": 0.028
+    },
+    {
+      "item_a": "AL6061",
+      "item_b": "STS316",
+      "count": 2,
+      "support": 0.014
+    }
+  ],
+  "customer_proximity": [
+    {
+      "from": "동아전자",
+      "to": "명성산업",
+      "lag_window": "1~8일",
+      "follow_count": 8,
+      "total": 13,
+      "probability": 0.62,
+      "expected_random": 0.32,
+      "lift": 1.95
+    },
+    {
+      "from": "세진테크",
+      "to": "대성기업",
+      "lag_window": "1~8일",
+      "follow_count": 8,
+      "total": 13,
+      "probability": 0.62,
+      "expected_random": 0.34,
+      "lift": 1.83
+    },
+    {
+      "from": "동아전자",
+      "to": "우진소재",
+      "lag_window": "1~8일",
+      "follow_count": 7,
+      "total": 13,
+      "probability": 0.54,
+      "expected_random": 0.32,
+      "lift": 1.71
+    },
+    {
+      "from": "동아전자",
+      "to": "대성기업",
+      "lag_window": "1~8일",
+      "follow_count": 7,
+      "total": 13,
+      "probability": 0.54,
+      "expected_random": 0.32,
+      "lift": 1.71
+    },
+    {
+      "from": "태광스틸",
+      "to": "대성기업",
+      "lag_window": "1~8일",
+      "follow_count": 13,
+      "total": 18,
+      "probability": 0.72,
+      "expected_random": 0.5,
+      "lift": 1.45
+    },
+    {
+      "from": "태광스틸",
+      "to": "명성산업",
+      "lag_window": "1~8일",
+      "follow_count": 13,
+      "total": 18,
+      "probability": 0.72,
+      "expected_random": 0.5,
+      "lift": 1.45
+    },
+    {
+      "from": "삼호금속",
+      "to": "대성기업",
+      "lag_window": "1~8일",
+      "follow_count": 12,
+      "total": 18,
+      "probability": 0.67,
+      "expected_random": 0.47,
+      "lift": 1.41
+    },
+    {
+      "from": "삼호금속",
+      "to": "명성산업",
+      "lag_window": "1~8일",
+      "follow_count": 12,
+      "total": 18,
+      "probability": 0.67,
+      "expected_random": 0.47,
+      "lift": 1.41
+    },
+    {
+      "from": "한진산업",
+      "to": "대성기업",
+      "lag_window": "1~8일",
+      "follow_count": 16,
+      "total": 22,
+      "probability": 0.73,
+      "expected_random": 0.52,
+      "lift": 1.39
+    },
+    {
+      "from": "세진테크",
+      "to": "명성산업",
+      "lag_window": "1~8일",
+      "follow_count": 6,
+      "total": 13,
+      "probability": 0.46,
+      "expected_random": 0.34,
+      "lift": 1.37
+    }
+  ],
+  "component_reanalysis": {
+    "대성기업/AL6061": {
+      "components": [
+        {
+          "component_id": 0,
+          "n": 24,
+          "mean": 14.2,
+          "is_main": true,
+          "drift": {
+            "first_third_mean": 13.8,
+            "last_third_mean": 14.8,
+            "change": 1.0,
+            "pct_change": 7.3,
+            "spearman_rho": 0.199,
+            "spearman_p": 0.352
+          },
+          "drift_detected": false
+        },
+        {
+          "component_id": 1,
+          "n": 5,
+          "mean": 2.8,
+          "is_main": false,
+          "cross_pattern_candidates": [
+            {
+              "precursor": "한진산업/STS304",
+              "count": 3,
+              "total": 5
+            },
+            {
+              "precursor": "삼호금속/CU_PLATE",
+              "count": 2,
+              "total": 5
+            },
+            {
+              "precursor": "명성산업/PIPE_SCH40",
+              "count": 2,
+              "total": 5
+            }
+          ]
+        }
+      ],
+      "cleaned_drift": {
+        "precursor": "한진산업/STS304",
+        "removed_orders": 6,
+        "remaining_intervals": 23,
+        "clean_intervals": [
+          15,
+          14,
+          13,
+          14,
+          15,
+          14,
+          13,
+          13,
+          15,
+          15,
+          17,
+          14,
+          15,
+          16,
+          18,
+          16,
+          19,
+          17,
+          8,
+          11,
+          20,
+          21,
+          22
+        ],
+        "first_third_mean": 14.0,
+        "last_third_mean": 16.9,
+        "change": 2.9,
+        "pct_change": 20.4,
+        "spearman_rho": 0.505,
+        "spearman_p": 0.014,
+        "detected": true
+      }
+    },
+    "명성산업/CARBON_STEEL": {
+      "components": [
+        {
+          "component_id": 0,
+          "n": 6,
+          "mean": 20.8,
+          "is_main": true,
+          "drift": {
+            "first_third_mean": 23.5,
+            "last_third_mean": 22.0,
+            "change": -1.5,
+            "pct_change": -6.4,
+            "spearman_rho": -0.232,
+            "spearman_p": 0.658
+          },
+          "drift_detected": false
+        },
+        {
+          "component_id": 1,
+          "n": 4,
+          "mean": 50.0,
+          "is_main": false,
+          "cross_pattern_candidates": [
+            {
+              "precursor": "동아전자/GASKET_A",
+              "count": 2,
+              "total": 4
+            },
+            {
+              "precursor": "대성기업/AL6061",
+              "count": 2,
+              "total": 4
+            },
+            {
+              "precursor": "삼호금속/STS304",
+              "count": 1,
+              "total": 4
+            }
+          ]
+        }
+      ],
+      "cleaned_drift": {
+        "precursor": "동아전자/GASKET_A",
+        "removed_orders": 3,
+        "remaining_intervals": 7,
+        "clean_intervals": [
+          91,
+          16,
+          16,
+          66,
+          14,
+          92,
+          30
+        ],
+        "first_third_mean": 53.5,
+        "last_third_mean": 61.0,
+        "change": 7.5,
+        "pct_change": 14.0,
+        "spearman_rho": 0.054,
+        "spearman_p": 0.908,
+        "detected": false
+      }
+    },
+    "명성산업/PIPE_SCH40": {
+      "components": [
+        {
+          "component_id": 2,
+          "n": 6,
+          "mean": 13.3,
+          "is_main": true,
+          "drift": {
+            "first_third_mean": 15.0,
+            "last_third_mean": 10.5,
+            "change": -4.5,
+            "pct_change": -30.0,
+            "spearman_rho": 0.116,
+            "spearman_p": 0.827
+          },
+          "drift_detected": true
+        },
+        {
+          "component_id": 1,
+          "n": 5,
+          "mean": 29.6,
+          "is_main": false,
+          "cross_pattern_candidates": [
+            {
+              "precursor": "대성기업/AL6061",
+              "count": 3,
+              "total": 5
+            },
+            {
+              "precursor": "태광스틸/STS304",
+              "count": 1,
+              "total": 5
+            },
+            {
+              "precursor": "태광스틸/PIPE_SCH40",
+              "count": 1,
+              "total": 5
+            }
+          ]
+        },
+        {
+          "component_id": 0,
+          "n": 2,
+          "mean": 62.5,
+          "is_main": false,
+          "cross_pattern_candidates": [
+            {
+              "precursor": "우진소재/CU_PLATE",
+              "count": 1,
+              "total": 2
+            },
+            {
+              "precursor": "삼호금속/CU_PLATE",
+              "count": 1,
+              "total": 2
+            },
+            {
+              "precursor": "한진산업/PTFE_SHEET",
+              "count": 1,
+              "total": 2
+            }
+          ]
+        }
+      ],
+      "cleaned_drift": {
+        "precursor": "대성기업/AL6061",
+        "removed_orders": 7,
+        "remaining_intervals": 6,
+        "clean_intervals": [
+          42,
+          16,
+          173,
+          42,
+          4,
+          17
+        ],
+        "first_third_mean": 29.0,
+        "last_third_mean": 10.5,
+        "change": -18.5,
+        "pct_change": -63.8,
+        "spearman_rho": -0.348,
+        "spearman_p": 0.499,
+        "detected": true
+      }
+    },
+    "한진산업/STS304": {
+      "components": [
+        {
+          "component_id": 1,
+          "n": 6,
+          "mean": 25.7,
+          "is_main": true,
+          "drift": {
+            "first_third_mean": 28.0,
+            "last_third_mean": 24.5,
+            "change": -3.5,
+            "pct_change": -12.5,
+            "spearman_rho": -0.621,
+            "spearman_p": 0.188
+          },
+          "drift_detected": true
+        },
+        {
+          "component_id": 0,
+          "n": 5,
+          "mean": 36.4,
+          "is_main": false,
+          "cross_pattern_candidates": [
+            {
+              "precursor": "대성기업/AL6061",
+              "count": 2,
+              "total": 5
+            },
+            {
+              "precursor": "명성산업/PIPE_SCH40",
+              "count": 2,
+              "total": 5
+            },
+            {
+              "precursor": "우진소재/CU_PLATE",
+              "count": 1,
+              "total": 5
+            }
+          ]
+        }
+      ],
+      "cleaned_drift": {
+        "precursor": "대성기업/AL6061",
+        "removed_orders": 5,
+        "remaining_intervals": 6,
+        "clean_intervals": [
+          28,
+          28,
+          28,
+          70,
+          21,
+          91
+        ],
+        "first_third_mean": 28.0,
+        "last_third_mean": 56.0,
+        "change": 28.0,
+        "pct_change": 100.0,
+        "spearman_rho": 0.334,
+        "spearman_p": 0.518,
+        "detected": true
+      }
+    }
+  },
+  "trend_changes": {
+    "대성기업/AL6061": {
+      "first_third_mean": 10.9,
+      "middle_third_mean": 11.7,
+      "last_third_mean": 13.8,
+      "absolute_change": 2.9,
+      "pct_change": 26.9,
+      "spearman_rho": 0.2,
+      "spearman_p": 0.298,
+      "intervals": [
+        15,
+        14,
+        13,
+        14,
+        14,
+        1,
+        14,
+        13,
+        0,
+        13,
+        15,
+        15,
+        17,
+        4,
+        10,
+        15,
+        10,
+        6,
+        15,
+        3,
+        16,
+        8,
+        11,
+        17,
+        8,
+        11,
+        20,
+        21,
+        22
+      ]
+    },
+    "명성산업/CARBON_STEEL": {
+      "first_third_mean": 35.7,
+      "middle_third_mean": 27.3,
+      "last_third_mean": 34.0,
+      "absolute_change": -1.7,
+      "pct_change": -4.7,
+      "spearman_rho": -0.085,
+      "spearman_p": 0.815,
+      "intervals": [
+        60,
+        31,
+        16,
+        16,
+        48,
+        18,
+        14,
+        44,
+        48,
+        30
+      ]
+    },
+    "명성산업/PIPE_SCH40": {
+      "first_third_mean": 22.8,
+      "middle_third_mean": 38.5,
+      "last_third_mean": 21.6,
+      "absolute_change": -1.1,
+      "pct_change": -5.1,
+      "spearman_rho": 0.0,
+      "spearman_p": 1.0,
+      "intervals": [
+        28,
+        14,
+        16,
+        33,
+        63,
+        15,
+        62,
+        14,
+        28,
+        4,
+        17,
+        31,
+        28
+      ]
+    },
+    "우진소재/STS316": {
+      "first_third_mean": 27.5,
+      "middle_third_mean": 74.5,
+      "last_third_mean": 49.0,
+      "absolute_change": 21.5,
+      "pct_change": 78.2,
+      "spearman_rho": 0.143,
+      "spearman_p": 0.76,
+      "intervals": [
+        14,
+        41,
+        114,
+        35,
+        18,
+        7,
+        122
+      ]
+    },
+    "한진산업/STS304": {
+      "first_third_mean": 30.3,
+      "middle_third_mean": 32.7,
+      "last_third_mean": 29.4,
+      "absolute_change": -0.9,
+      "pct_change": -3.1,
+      "spearman_rho": -0.009,
+      "spearman_p": 0.978,
+      "intervals": [
+        35,
+        28,
+        28,
+        28,
+        36,
+        34,
+        21,
+        28,
+        42,
+        21,
+        35
+      ]
+    }
+  },
+  "multi_condition": {
+    "n_conditions": 29,
+    "n_targets": 17,
+    "n_single_associations": 212,
+    "top_single_associations": [
+      {
+        "condition": "high_qty:한진산업/STS304",
+        "target": "next:세진테크/STS316",
+        "p_target": 0.273,
+        "p_given_cond": 1.0,
+        "lift": 3.67,
+        "support": 3
+      },
+      {
+        "condition": "ordered:세진테크/CARBON_STEEL",
+        "target": "next:세진테크/STS316",
+        "p_target": 0.273,
+        "p_given_cond": 0.75,
+        "lift": 2.75,
+        "support": 3
+      },
+      {
+        "condition": "ordered:세진테크/AL5052",
+        "target": "next:세진테크/STS316",
+        "p_target": 0.273,
+        "p_given_cond": 0.75,
+        "lift": 2.75,
+        "support": 3
+      },
+      {
+        "condition": "ordered:세진테크/STS304",
+        "target": "next:세진테크/STS316",
+        "p_target": 0.273,
+        "p_given_cond": 0.75,
+        "lift": 2.75,
+        "support": 3
+      },
+      {
+        "condition": "ordered:세진테크/STS316",
+        "target": "next:동아전자/GASKET_A",
+        "p_target": 0.364,
+        "p_given_cond": 1.0,
+        "lift": 2.75,
+        "support": 3
+      },
+      {
+        "condition": "event:태광스틸/납기확인",
+        "target": "next:동아전자/GASKET_A",
+        "p_target": 0.364,
+        "p_given_cond": 1.0,
+        "lift": 2.75,
+        "support": 3
+      },
+      {
+        "condition": "ordered:우진소재/AL6061",
+        "target": "next:세진테크/STS316",
+        "p_target": 0.273,
+        "p_given_cond": 0.667,
+        "lift": 2.44,
+        "support": 2
+      },
+      {
+        "condition": "ordered:태광스틸/STS304",
+        "target": "next:세진테크/STS316",
+        "p_target": 0.273,
+        "p_given_cond": 0.667,
+        "lift": 2.44,
+        "support": 2
+      },
+      {
+        "condition": "ordered:동아전자/GASKET_A",
+        "target": "next:태광스틸/PIPE_SCH40",
+        "p_target": 0.273,
+        "p_given_cond": 0.667,
+        "lift": 2.44,
+        "support": 2
+      },
+      {
+        "condition": "high_qty:한진산업/STS304",
+        "target": "next:태광스틸/PIPE_SCH40",
+        "p_target": 0.273,
+        "p_given_cond": 0.667,
+        "lift": 2.44,
+        "support": 2
+      },
+      {
+        "condition": "ordered:우진소재/AL6061",
+        "target": "next:태광스틸/PIPE_SCH40",
+        "p_target": 0.273,
+        "p_given_cond": 0.667,
+        "lift": 2.44,
+        "support": 2
+      },
+      {
+        "condition": "ordered:태광스틸/STS304",
+        "target": "next:태광스틸/PIPE_SCH40",
+        "p_target": 0.273,
+        "p_given_cond": 0.667,
+        "lift": 2.44,
+        "support": 2
+      },
+      {
+        "condition": "ordered:태광스틸/PIPE_SCH40",
+        "target": "next:한진산업/STS316",
+        "p_target": 0.273,
+        "p_given_cond": 0.667,
+        "lift": 2.44,
+        "support": 2
+      },
+      {
+        "condition": "high_qty:한진산업/STS304",
+        "target": "next:한진산업/STS316",
+        "p_target": 0.273,
+        "p_given_cond": 0.667,
+        "lift": 2.44,
+        "support": 2
+      },
+      {
+        "condition": "ordered:우진소재/AL6061",
+        "target": "next:한진산업/STS316",
+        "p_target": 0.273,
+        "p_given_cond": 0.667,
+        "lift": 2.44,
+        "support": 2
+      },
+      {
+        "condition": "high_qty:우진소재/STS316",
+        "target": "next:한진산업/STS316",
+        "p_target": 0.273,
+        "p_given_cond": 0.667,
+        "lift": 2.44,
+        "support": 2
+      },
+      {
+        "condition": "ordered:동아전자/GASKET_A",
+        "target": "next:세진테크/STS304",
+        "p_target": 0.273,
+        "p_given_cond": 0.667,
+        "lift": 2.44,
+        "support": 2
+      },
+      {
+        "condition": "ordered:동아전자/GASKET_A",
+        "target": "next:태광스틸/AL6061",
+        "p_target": 0.273,
+        "p_given_cond": 0.667,
+        "lift": 2.44,
+        "support": 2
+      },
+      {
+        "condition": "season:fall",
+        "target": "next:태광스틸/AL6061",
+        "p_target": 0.273,
+        "p_given_cond": 0.667,
+        "lift": 2.44,
+        "support": 2
+      },
+      {
+        "condition": "ordered:우진소재/AL6061",
+        "target": "next:태광스틸/AL6061",
+        "p_target": 0.273,
+        "p_given_cond": 0.667,
+        "lift": 2.44,
+        "support": 2
+      }
+    ],
+    "multi_condition_rules": [
+      {
+        "condition_a": "ordered:세진테크/CARBON_STEEL",
+        "condition_b": "ordered:우진소재/STS316",
+        "target": "next:태광스틸/PIPE_SCH40",
+        "p_target": 0.273,
+        "p_given_a": 0.5,
+        "p_given_b": 0.4,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.5,
+        "lift_ab": 3.67
+      },
+      {
+        "condition_a": "ordered:세진테크/AL5052",
+        "condition_b": "ordered:우진소재/STS316",
+        "target": "next:태광스틸/PIPE_SCH40",
+        "p_target": 0.273,
+        "p_given_a": 0.5,
+        "p_given_b": 0.4,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.5,
+        "lift_ab": 3.67
+      },
+      {
+        "condition_a": "ordered:세진테크/STS304",
+        "condition_b": "ordered:우진소재/STS316",
+        "target": "next:태광스틸/PIPE_SCH40",
+        "p_target": 0.273,
+        "p_given_a": 0.5,
+        "p_given_b": 0.4,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.5,
+        "lift_ab": 3.67
+      },
+      {
+        "condition_a": "ordered:우진소재/CU_PLATE",
+        "condition_b": "ordered:명성산업/CARBON_STEEL",
+        "target": "next:태광스틸/AL6061",
+        "p_target": 0.273,
+        "p_given_a": 0.5,
+        "p_given_b": 0.375,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.5,
+        "lift_ab": 3.67
+      },
+      {
+        "condition_a": "ordered:우진소재/CU_PLATE",
+        "condition_b": "event:동아전자/견적요청",
+        "target": "next:우진소재/CU_PLATE",
+        "p_target": 0.455,
+        "p_given_a": 0.5,
+        "p_given_b": 0.571,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.429,
+        "lift_ab": 2.2
+      },
+      {
+        "condition_a": "ordered:우진소재/CU_PLATE",
+        "condition_b": "event:동아전자/견적요청",
+        "target": "next:우진소재/STS316",
+        "p_target": 0.455,
+        "p_given_a": 0.5,
+        "p_given_b": 0.571,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.429,
+        "lift_ab": 2.2
+      },
+      {
+        "condition_a": "high_qty:명성산업/PIPE_SCH40",
+        "condition_b": "ordered:우진소재/STS316",
+        "target": "next:동아전자/GASKET_A",
+        "p_target": 0.364,
+        "p_given_a": 0.5,
+        "p_given_b": 0.6,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.4,
+        "lift_ab": 2.75
+      },
+      {
+        "condition_a": "ordered:세진테크/CARBON_STEEL",
+        "condition_b": "ordered:우진소재/STS316",
+        "target": "next:우진소재/CU_PLATE",
+        "p_target": 0.455,
+        "p_given_a": 0.5,
+        "p_given_b": 0.6,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.4,
+        "lift_ab": 2.2
+      },
+      {
+        "condition_a": "ordered:세진테크/AL5052",
+        "condition_b": "ordered:우진소재/STS316",
+        "target": "next:우진소재/CU_PLATE",
+        "p_target": 0.455,
+        "p_given_a": 0.5,
+        "p_given_b": 0.6,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.4,
+        "lift_ab": 2.2
+      },
+      {
+        "condition_a": "ordered:세진테크/STS304",
+        "condition_b": "ordered:우진소재/STS316",
+        "target": "next:우진소재/CU_PLATE",
+        "p_target": 0.455,
+        "p_given_a": 0.5,
+        "p_given_b": 0.6,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.4,
+        "lift_ab": 2.2
+      },
+      {
+        "condition_a": "ordered:우진소재/STS316",
+        "condition_b": "event:동아전자/견적요청",
+        "target": "next:우진소재/CU_PLATE",
+        "p_target": 0.455,
+        "p_given_a": 0.6,
+        "p_given_b": 0.571,
+        "p_given_ab": 1.0,
+        "ab_count": 3,
+        "ab_target": 3,
+        "interaction_score": 0.4,
+        "lift_ab": 2.2
+      },
+      {
+        "condition_a": "ordered:세진테크/CARBON_STEEL",
+        "condition_b": "ordered:우진소재/STS316",
+        "target": "next:우진소재/STS316",
+        "p_target": 0.455,
+        "p_given_a": 0.5,
+        "p_given_b": 0.6,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.4,
+        "lift_ab": 2.2
+      },
+      {
+        "condition_a": "ordered:세진테크/AL5052",
+        "condition_b": "ordered:우진소재/STS316",
+        "target": "next:우진소재/STS316",
+        "p_target": 0.455,
+        "p_given_a": 0.5,
+        "p_given_b": 0.6,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.4,
+        "lift_ab": 2.2
+      },
+      {
+        "condition_a": "ordered:세진테크/STS304",
+        "condition_b": "ordered:우진소재/STS316",
+        "target": "next:우진소재/STS316",
+        "p_target": 0.455,
+        "p_given_a": 0.5,
+        "p_given_b": 0.6,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.4,
+        "lift_ab": 2.2
+      },
+      {
+        "condition_a": "ordered:우진소재/STS316",
+        "condition_b": "event:동아전자/견적요청",
+        "target": "next:우진소재/STS316",
+        "p_target": 0.455,
+        "p_given_a": 0.6,
+        "p_given_b": 0.571,
+        "p_given_ab": 1.0,
+        "ab_count": 3,
+        "ab_target": 3,
+        "interaction_score": 0.4,
+        "lift_ab": 2.2
+      },
+      {
+        "condition_a": "ordered:우진소재/AL6061",
+        "condition_b": "ordered:태광스틸/STS304",
+        "target": "next:세진테크/STS316",
+        "p_target": 0.273,
+        "p_given_a": 0.667,
+        "p_given_b": 0.667,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.333,
+        "lift_ab": 3.67
+      },
+      {
+        "condition_a": "ordered:우진소재/AL6061",
+        "condition_b": "event:동아전자/견적요청",
+        "target": "next:세진테크/STS316",
+        "p_target": 0.273,
+        "p_given_a": 0.667,
+        "p_given_b": 0.286,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.333,
+        "lift_ab": 3.67
+      },
+      {
+        "condition_a": "ordered:우진소재/STS316",
+        "condition_b": "ordered:태광스틸/STS304",
+        "target": "next:세진테크/STS316",
+        "p_target": 0.273,
+        "p_given_a": 0.4,
+        "p_given_b": 0.667,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.333,
+        "lift_ab": 3.67
+      },
+      {
+        "condition_a": "ordered:태광스틸/STS304",
+        "condition_b": "event:동아전자/견적요청",
+        "target": "next:세진테크/STS316",
+        "p_target": 0.273,
+        "p_given_a": 0.667,
+        "p_given_b": 0.286,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.333,
+        "lift_ab": 3.67
+      },
+      {
+        "condition_a": "high_qty:한진산업/STS304",
+        "condition_b": "ordered:우진소재/AL6061",
+        "target": "next:태광스틸/PIPE_SCH40",
+        "p_target": 0.273,
+        "p_given_a": 0.667,
+        "p_given_b": 0.667,
+        "p_given_ab": 1.0,
+        "ab_count": 2,
+        "ab_target": 2,
+        "interaction_score": 0.333,
+        "lift_ab": 3.67
+      }
+    ]
+  },
+  "event_order_lag": {
+    "동아전자/견적요청": {
+      "customer": "동아전자",
+      "event_type": "견적요청",
+      "event_count": 8,
+      "followed_by_order": 8,
+      "follow_rate": 1.0,
+      "mean_lag": 9.8,
+      "std_lag": 2.9,
+      "median_lag": 8.5,
+      "item_match_count": 7,
+      "item_match_rate": 0.88,
+      "lags": [
+        13,
+        8,
+        13,
+        7,
+        8,
+        14,
+        9,
+        6
+      ]
+    },
+    "동아전자/샘플요청": {
+      "customer": "동아전자",
+      "event_type": "샘플요청",
+      "event_count": 2,
+      "followed_by_order": 2,
+      "follow_rate": 1.0,
+      "mean_lag": 21.0,
+      "std_lag": 6.0,
+      "median_lag": 21.0,
+      "item_match_count": 0,
+      "item_match_rate": 0.0,
+      "lags": [
+        27,
+        15
+      ]
+    },
+    "삼호금속/가격문의": {
+      "customer": "삼호금속",
+      "event_type": "가격문의",
+      "event_count": 2,
+      "followed_by_order": 2,
+      "follow_rate": 1.0,
+      "mean_lag": 7.5,
+      "std_lag": 1.5,
+      "median_lag": 7.5,
+      "item_match_count": 0,
+      "item_match_rate": 0.0,
+      "lags": [
+        6,
+        9
+      ]
+    },
+    "태광스틸/납기확인": {
+      "customer": "태광스틸",
+      "event_type": "납기확인",
+      "event_count": 5,
+      "followed_by_order": 2,
+      "follow_rate": 0.4,
+      "mean_lag": 15.5,
+      "std_lag": 12.5,
+      "median_lag": 15.5,
+      "item_match_count": 0,
+      "item_match_rate": 0.0,
+      "lags": [
+        3,
+        28
+      ]
+    },
+    "한진산업/가격문의": {
+      "customer": "한진산업",
+      "event_type": "가격문의",
+      "event_count": 4,
+      "followed_by_order": 4,
+      "follow_rate": 1.0,
+      "mean_lag": 23.0,
+      "std_lag": 2.2,
+      "median_lag": 23.0,
+      "item_match_count": 1,
+      "item_match_rate": 0.25,
+      "lags": [
+        26,
+        20,
+        24,
+        22
+      ]
+    }
+  }
+}
+```
+
+---
+
+## 데이터 접근
+
+통계 결과만으로 부족하면 아래 원본 CSV를 Read 도구로 직접 조회하세요.
+
+### 1. 발주 데이터 (`C:\Users\kim\OneDrive\문서\llm-factory-diagnosis\step5_rule_discovery_agent\synthetic\data/orders.csv`)
+- 컬럼: order_id, date, weekday, customer, item, category, quantity, unit, unit_price, total_amount
+- 175건, 2025-04-02 ~ 2026-03-26
+
+### 2. 이벤트 데이터 (`C:\Users\kim\OneDrive\문서\llm-factory-diagnosis\step5_rule_discovery_agent\synthetic\data/events.csv`)
+- 컬럼: date, customer, event_type, item, note
+- 31건 (견적요청, 샘플요청, 가격문의, 납기확인)
+
+### 3. 고객 데이터 (`C:\Users\kim\OneDrive\문서\llm-factory-diagnosis\step5_rule_discovery_agent\synthetic\data/customers.csv`)
+- 컬럼: customer, type, note
+- 8개사, 유형: regular, quarterly, irregular, seasonal, random
+
+### 4. 품목 데이터 (`C:\Users\kim\OneDrive\문서\llm-factory-diagnosis\step5_rule_discovery_agent\synthetic\data/items.csv`)
+- 컬럼: item, category, base_price, unit
+- 12개 품목
+
+---
+
+## 출력
+
+발견한 규칙을 아래 JSON 포맷으로 작성하여
+`C:\Users\kim\OneDrive\문서\llm-factory-diagnosis\step5_rule_discovery_agent\synthetic\results/llm_rules.json` 파일에 Write 도구로 저장하세요.
+
+```json
+{
+  "experiment": "v2_llm_directed",
+  "timestamp": "작성 시점",
+  "rules": [
+    {
+      "id": "R1",
+      "content": "규칙을 자연어로 서술",
+      "confidence": 0.95,
+      "evidence": "근거 수치/통계 설명 + 왜 이 신호가 중요하다고 판단했는지",
+      "type": "periodic | seasonal | cross_customer | co_occurrence | event_trigger | conditional | drift | exception",
+      "entities": {"customer": "...", "item": "..."}
+    }
+  ]
+}
+```
+
+### type 분류 기준
+- `periodic`: 일정 주기 반복 발주
+- `seasonal`: 특정 계절/시기 수량 변화
+- `cross_customer`: 고객 간 연쇄 발주
+- `co_occurrence`: 품목 동반 발주
+- `event_trigger`: 이벤트 후 발주 전환
+- `conditional`: 특정 조건 충족 시 후속 발주
+- `drift`: 시간에 따른 패턴 변화
+- `exception`: 공휴일 등 예외 상황
+
+### 주의
+- entities에는 해당 규칙과 관련된 고객/품목을 가능한 한 명시하세요.
+- 교차 발주의 경우 entities에 `from`, `to` 키를 사용하세요.
+- 동반 발주의 경우 entities에 `items` 리스트를 사용하세요.
+- confidence는 통계적 근거의 강도와 표본 수를 함께 고려하여 결정하세요.

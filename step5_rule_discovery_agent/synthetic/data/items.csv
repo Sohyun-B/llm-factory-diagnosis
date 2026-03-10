@@ -1,0 +1,13 @@
+﻿item,category,base_price,unit
+STS304,스테인리스,4500,kg
+STS316,스테인리스,6200,kg
+AL6061,알루미늄,3800,kg
+AL5052,알루미늄,3500,kg
+CU_PIPE,동,12000,m
+CU_PLATE,동,15000,kg
+SS_BOLT_M10,체결부품,250,ea
+SS_NUT_M10,체결부품,120,ea
+GASKET_A,실링,8500,ea
+PTFE_SHEET,실링,32000,장
+CARBON_STEEL,탄소강,2800,kg
+PIPE_SCH40,배관,18000,m

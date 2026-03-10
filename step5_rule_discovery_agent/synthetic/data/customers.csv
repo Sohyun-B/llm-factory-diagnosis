@@ -1,0 +1,9 @@
+﻿customer,type,note
+한진산업,regular,"주요 고객, 월초 정기 발주"
+대성기업,regular,"격주 발주, 한진산업 하청"
+세진테크,quarterly,분기 시작 대량 발주
+동아전자,irregular,견적 후 발주
+삼호금속,random,비정기 소량 발주
+우진소재,seasonal,봄/가을 집중
+태광스틸,random,비정기 발주
+명성산업,regular,월 2회 정기
