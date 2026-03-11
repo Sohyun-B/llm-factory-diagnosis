@@ -1,0 +1,73 @@
+{
+  "reasoning": "Phase 1+2 결과를 보고 느낀 점: 대성기업의 짧은 간격 주문은 다른 고객들의 주문 패턴에 의해 영향을 받을 수 있으며, 동아전자의 긴 주문 간격은 명성산업과의 상호작용과 관련이 있을 수 있습니다. 세진테크의 경우 정기적인 주문 패턴은 외부 요인보다는 내재적 요인에 의한 것으로 보입니다. 우진소재의 변동성은 특정 고객의 행동에 기인할 수 있으며, 한진산업의 경우 두 품목 사이에 교대 패턴이 존재할 가능성이 있습니다.",
+  "hypotheses": [
+    {
+      "id": "H-A",
+      "statement": "대성기업의 AL6061 짧은 간격 주문은 한진산업의 STS304 주문에 의해 촉발된다.",
+      "test_type": "cross_customer_binary",
+      "params": {
+        "trigger_customer": "한진산업",
+        "trigger_item": "STS304",
+        "effect_customer": "대성기업",
+        "effect_item": "AL6061",
+        "lag_window": [
+          0,
+          2
+        ]
+      },
+      "success_criteria": "대성기업의 AL6061 주문이 한진산업의 STS304 주문 직후 발생하면 확인"
+    },
+    {
+      "id": "H-B",
+      "statement": "동아전자의 GASKET_A 긴 주문 간격은 명성산업의 PIPE_SCH40 주문과 상호작용이 있다.",
+      "test_type": "cross_customer_binary",
+      "params": {
+        "trigger_customer": "명성산업",
+        "trigger_item": "PIPE_SCH40",
+        "effect_customer": "동아전자",
+        "effect_item": "GASKET_A",
+        "lag_window": [
+          0,
+          7
+        ]
+      },
+      "success_criteria": "명성산업의 PIPE_SCH40 주문 후 동아전자의 GASKET_A 주문이 발생하면 확인"
+    },
+    {
+      "id": "H-C",
+      "statement": "우진소재의 STS316 변동성은 특정 고객의 행동에 의해 유발된다.",
+      "test_type": "drift_after_cleaning",
+      "params": {
+        "customer": "우진소재",
+        "item": "STS316",
+        "remove_precursor": "고객",
+        "remove_lag_max": 5
+      },
+      "success_criteria": "고객 제거 후 변동성이 감소하면 확인"
+    },
+    {
+      "id": "H-D",
+      "statement": "한진산업의 STS304와 CU_PIPE 사이에 교대 패턴이 존재한다.",
+      "test_type": "periodicity_test",
+      "params": {
+        "customer": "한진산업",
+        "item": "STS304",
+        "expected_period": 15,
+        "tolerance_pct": 15
+      },
+      "success_criteria": "교대 패턴이 15일 주기로 나타나면 확인"
+    },
+    {
+      "id": "H-E",
+      "statement": "세진테크의 정기적 주문 패턴은 내재적 요인에 의해 유지된다.",
+      "test_type": "periodicity_test",
+      "params": {
+        "customer": "세진테크",
+        "item": "AL5052",
+        "expected_period": 91,
+        "tolerance_pct": 5
+      },
+      "success_criteria": "91일 주기의 주문 패턴이 확인되면 가설 확인"
+    }
+  ]
+}

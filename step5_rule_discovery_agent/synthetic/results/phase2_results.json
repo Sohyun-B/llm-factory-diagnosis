@@ -1,0 +1,275 @@
+{
+  "INV-001": {
+    "question": "대성기업의 짧은 간격 주문 패턴은 무엇에 의해 유발되었는가?",
+    "analysis_type": "precursor_check",
+    "result": {
+      "target": "대성기업/AL6061",
+      "target_max_interval": 2,
+      "short_interval_count": 2,
+      "total_intervals": 29,
+      "details": [
+        {
+          "order_date": "2025-06-13",
+          "interval_days": 1,
+          "precursors": [
+            {
+              "customer": "우진소재",
+              "item": "CARBON_STEEL",
+              "date": "2025-06-06",
+              "lag_days": 7
+            },
+            {
+              "customer": "한진산업",
+              "item": "STS304",
+              "date": "2025-06-09",
+              "lag_days": 4
+            },
+            {
+              "customer": "한진산업",
+              "item": "CU_PIPE",
+              "date": "2025-06-09",
+              "lag_days": 4
+            },
+            {
+              "customer": "삼호금속",
+              "item": "PIPE_SCH40",
+              "date": "2025-06-09",
+              "lag_days": 4
+            },
+            {
+              "customer": "삼호금속",
+              "item": "CU_PLATE",
+              "date": "2025-06-09",
+              "lag_days": 4
+            }
+          ]
+        },
+        {
+          "order_date": "2025-07-10",
+          "interval_days": 0,
+          "precursors": [
+            {
+              "customer": "명성산업",
+              "item": "PIPE_SCH40",
+              "date": "2025-07-07",
+              "lag_days": 3
+            },
+            {
+              "customer": "삼호금속",
+              "item": "GASKET_A",
+              "date": "2025-07-07",
+              "lag_days": 3
+            },
+            {
+              "customer": "한진산업",
+              "item": "STS304",
+              "date": "2025-07-07",
+              "lag_days": 3
+            }
+          ]
+        }
+      ],
+      "top_precursors": [
+        {
+          "precursor": "한진산업/STS304",
+          "count": 2,
+          "rate": 1.0
+        },
+        {
+          "precursor": "우진소재/CARBON_STEEL",
+          "count": 1,
+          "rate": 0.5
+        },
+        {
+          "precursor": "한진산업/CU_PIPE",
+          "count": 1,
+          "rate": 0.5
+        },
+        {
+          "precursor": "삼호금속/PIPE_SCH40",
+          "count": 1,
+          "rate": 0.5
+        },
+        {
+          "precursor": "삼호금속/CU_PLATE",
+          "count": 1,
+          "rate": 0.5
+        }
+      ],
+      "summary": "짧은 간격 2건 중 상위 선행자: 한진산업/STS304 (2건, 100%)"
+    }
+  },
+  "INV-002": {
+    "question": "동아전자의 GASKET_A와 SS_BOLT_M10의 긴 주문 간격이 다른 고객과의 상호작용과 관련이 있는가?",
+    "analysis_type": "cross_customer_detail",
+    "result": {
+      "from": "동아전자/GASKET_A",
+      "to": "명성산업",
+      "lag_range": "1~7일",
+      "hit_count": 3,
+      "total_from_orders": 4,
+      "probability": 0.75,
+      "expected_random": 0.53,
+      "lift": 1.4,
+      "pairs": [
+        {
+          "from_date": "2025-06-18",
+          "to_date": "2025-06-20",
+          "lag_days": 2
+        },
+        {
+          "from_date": "2025-12-22",
+          "to_date": "2025-12-24",
+          "lag_days": 2
+        },
+        {
+          "from_date": "2026-03-23",
+          "to_date": "2026-03-26",
+          "lag_days": 3
+        }
+      ],
+      "summary": "동아전자→명성산업: 3/4 = 75% (기대 53%, lift=1.4)"
+    }
+  },
+  "INV-003": {
+    "question": "세진테크의 정기적인 주문 패턴이 다른 이벤트나 조건에 의해 영향을 받는가?",
+    "analysis_type": "conditional_trigger",
+    "result": {
+      "trigger": "세진테크/AL5052 (qty>=50)",
+      "effect": "세진테크/CARBON_STEEL",
+      "time_window": "30일",
+      "trigger_count": 4,
+      "hit_count": 0,
+      "hit_rate": 0.0,
+      "baseline_count": 0,
+      "baseline_hits": 0,
+      "baseline_rate": 0,
+      "hits": [],
+      "summary": "조건 충족 4건 중 0건 후속 (0%), 비조건 0%"
+    }
+  },
+  "INV-004": {
+    "question": "우진소재의 AL6061, CU_PLATE, STS316의 높은 변동성의 원인은 무엇인가?",
+    "analysis_type": "drift_detail",
+    "result": {
+      "target": "우진소재/STS316",
+      "total_orders": 8,
+      "raw_drift": {
+        "first_third_mean": 27.5,
+        "last_third_mean": 64.5,
+        "spearman_rho": 0.143,
+        "spearman_p": 0.76
+      },
+      "remove_precursor": "고객",
+      "cleaned_drift": null,
+      "summary": "원본 rho=0.143, p=0.76"
+    }
+  },
+  "INV-005": {
+    "question": "한진산업의 STS304와 CU_PIPE의 주문 간격 및 패턴의 차이는 무엇인가?",
+    "analysis_type": "alternation_check",
+    "result": {
+      "customer": "한진산업",
+      "items": [
+        "STS304",
+        "CU_PIPE"
+      ],
+      "total_orders": 18,
+      "alternation_rate": 0.59,
+      "perfect_alternation": false,
+      "timeline": [
+        {
+          "date": "2025-04-07",
+          "item": "STS304",
+          "quantity": 174
+        },
+        {
+          "date": "2025-05-12",
+          "item": "STS304",
+          "quantity": 134
+        },
+        {
+          "date": "2025-05-13",
+          "item": "CU_PIPE",
+          "quantity": 17
+        },
+        {
+          "date": "2025-06-09",
+          "item": "STS304",
+          "quantity": 111
+        },
+        {
+          "date": "2025-06-09",
+          "item": "CU_PIPE",
+          "quantity": 22
+        },
+        {
+          "date": "2025-07-07",
+          "item": "STS304",
+          "quantity": 114
+        },
+        {
+          "date": "2025-08-04",
+          "item": "STS304",
+          "quantity": 91
+        },
+        {
+          "date": "2025-09-09",
+          "item": "STS304",
+          "quantity": 91
+        },
+        {
+          "date": "2025-10-13",
+          "item": "STS304",
+          "quantity": 158
+        },
+        {
+          "date": "2025-10-14",
+          "item": "CU_PIPE",
+          "quantity": 21
+        },
+        {
+          "date": "2025-11-03",
+          "item": "CU_PIPE",
+          "quantity": 20
+        },
+        {
+          "date": "2025-11-03",
+          "item": "STS304",
+          "quantity": 80
+        },
+        {
+          "date": "2025-12-01",
+          "item": "STS304",
+          "quantity": 77
+        },
+        {
+          "date": "2025-12-03",
+          "item": "CU_PIPE",
+          "quantity": 21
+        },
+        {
+          "date": "2026-01-12",
+          "item": "STS304",
+          "quantity": 149
+        },
+        {
+          "date": "2026-02-02",
+          "item": "STS304",
+          "quantity": 113
+        },
+        {
+          "date": "2026-02-04",
+          "item": "CU_PIPE",
+          "quantity": 22
+        },
+        {
+          "date": "2026-03-09",
+          "item": "STS304",
+          "quantity": 114
+        }
+      ],
+      "summary": "한진산업의 STS304↔CU_PIPE: 교대율 59% (10/17)"
+    }
+  }
+}

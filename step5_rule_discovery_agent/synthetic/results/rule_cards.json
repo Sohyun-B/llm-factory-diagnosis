@@ -1,0 +1,133 @@
+{
+  "rule_cards": [
+    {
+      "id": "RULE-001",
+      "content": "세진테크는 AL5052, CARBON_STEEL, STS304을 91일 주기로 발주한다.",
+      "type": "periodic",
+      "entities": {
+        "customer": "세진테크",
+        "item": "AL5052, CARBON_STEEL, STS304"
+      },
+      "confidence": {
+        "score": 0.9,
+        "natural_language": "거의 확실하다",
+        "basis": "세 가지 품목 모두 동일한 주기로 발주됨"
+      },
+      "evidence": {
+        "auto_finding": "AF-001, AF-002, AF-003",
+        "llm_interpretation": "세진테크의 제조 계획 혹은 장기 계약일 가능성",
+        "exceptions": "없음"
+      },
+      "related_rules": [],
+      "verification_plan": {
+        "method": "주기적 발주 패턴 검증",
+        "frequency": "quarterly"
+      }
+    },
+    {
+      "id": "RULE-002",
+      "content": "대성기업의 AL6061 발주 주기는 14일이나, 한진산업 STS304 발주 후 짧은 간격(2.8일) 발주가 발생한다.",
+      "type": "periodic_with_noise",
+      "entities": {
+        "customer": "대성기업",
+        "item": "AL6061"
+      },
+      "confidence": {
+        "score": 0.7,
+        "natural_language": "가능성이 높은 편이다",
+        "basis": "한진산업 발주 후 긴급 하청 반응"
+      },
+      "evidence": {
+        "auto_finding": "AF-004, AF-006",
+        "llm_interpretation": "한진산업과의 협력 관계에서 발생",
+        "exceptions": "없음"
+      },
+      "related_rules": [
+        "RULE-003"
+      ],
+      "verification_plan": {
+        "method": "발주 주기 및 긴급 발주 패턴 확인",
+        "frequency": "monthly"
+      }
+    },
+    {
+      "id": "RULE-003",
+      "content": "대성기업의 AL6061 발주 간격이 시간에 따라 증가한다.",
+      "type": "drift",
+      "entities": {
+        "customer": "대성기업",
+        "item": "AL6061"
+      },
+      "confidence": {
+        "score": 0.7,
+        "natural_language": "가능성이 높은 편이다",
+        "basis": "시간에 따른 발주 간격 변화"
+      },
+      "evidence": {
+        "auto_finding": "AF-010",
+        "llm_interpretation": "수요 감소로 인한 주기 증가 가능성",
+        "exceptions": "없음"
+      },
+      "related_rules": [
+        "RULE-002"
+      ],
+      "verification_plan": {
+        "method": "발주 간격 변화 추적",
+        "frequency": "quarterly"
+      }
+    },
+    {
+      "id": "RULE-004",
+      "content": "동아전자의 견적 요청은 100% 주문으로 전환되며, 대부분 요청한 품목과 일치한다.",
+      "type": "event_trigger",
+      "entities": {
+        "customer": "동아전자",
+        "event_type": "견적요청"
+      },
+      "confidence": {
+        "score": 0.8,
+        "natural_language": "가능성이 높은 편이다",
+        "basis": "높은 전환율과 품목 일치"
+      },
+      "evidence": {
+        "auto_finding": "AF-011",
+        "llm_interpretation": "고객의 요구가 잘 반영됨",
+        "exceptions": "일부 품목 불일치"
+      },
+      "related_rules": [],
+      "verification_plan": {
+        "method": "견적 요청과 주문 일치율 검증",
+        "frequency": "monthly"
+      }
+    },
+    {
+      "id": "RULE-005",
+      "content": "한진산업의 STS304 대량 발주 후 세진테크의 STS316 발주가 종종 발생한다.",
+      "type": "association",
+      "entities": {
+        "condition": "한진산업/STS304 대량 발주",
+        "target": "세진테크/STS316"
+      },
+      "confidence": {
+        "score": 0.6,
+        "natural_language": "가능성이 높은 편이다",
+        "basis": "조건부 확률 100%로 확인됨"
+      },
+      "evidence": {
+        "auto_finding": "AF-015",
+        "llm_interpretation": "한진산업의 대량 발주에 대한 반응",
+        "exceptions": "추가 대량 발주가 영향을 미치지 않음"
+      },
+      "related_rules": [],
+      "verification_plan": {
+        "method": "대량 발주 후의 반응 패턴 검증",
+        "frequency": "quarterly"
+      }
+    }
+  ],
+  "investigation_summary": "이번 수사를 통해 대성기업과 한진산업 간의 발주 패턴 및 관계를 더 깊이 이해할 수 있었습니다. 특히, 대성기업의 짧은 간격 발주는 한진산업의 발주에 크게 영향을 받는 것으로 보입니다.",
+  "open_questions": [
+    "대성기업의 AL6061 발주 간격 증가의 구체적 원인은 무엇인가?",
+    "세진테크가 STS316을 다른 출처로부터 공급받고 있는지 여부"
+  ]
+}

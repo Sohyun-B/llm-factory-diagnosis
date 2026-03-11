@@ -1,0 +1,68 @@
+{
+  "observations": [
+    "대성기업의 AL6061 품목은 매우 짧은 간격의 주문이 존재하여 두 가지 패턴이 있습니다.",
+    "동아전자는 특정 품목에서 긴 주문 간격을 가지며, 이는 다른 고객들과의 상호작용에서 높은 lift를 보입니다.",
+    "세진테크는 특정 품목의 주문 간격이 일정하여 정기적인 주문 패턴으로 보입니다.",
+    "우진소재는 AL6061, CU_PLATE, STS316에서 높은 변동성을 보이며 불규칙한 주문 패턴이 있습니다.",
+    "한진산업의 STS304는 긴 주문 간격을 가지며, CU_PIPE는 비정상적으로 짧은 간격의 주문이 존재합니다."
+  ],
+  "phase2_requests": [
+    {
+      "id": "INV-001",
+      "question": "대성기업의 짧은 간격 주문 패턴은 무엇에 의해 유발되었는가?",
+      "analysis_type": "precursor_check",
+      "params": {
+        "customer": "대성기업",
+        "item": "AL6061",
+        "target_max_interval": 2
+      }
+    },
+    {
+      "id": "INV-002",
+      "question": "동아전자의 GASKET_A와 SS_BOLT_M10의 긴 주문 간격이 다른 고객과의 상호작용과 관련이 있는가?",
+      "analysis_type": "cross_customer_detail",
+      "params": {
+        "from_customer": "동아전자",
+        "to_customer": "명성산업",
+        "from_item": "GASKET_A"
+      }
+    },
+    {
+      "id": "INV-003",
+      "question": "세진테크의 정기적인 주문 패턴이 다른 이벤트나 조건에 의해 영향을 받는가?",
+      "analysis_type": "conditional_trigger",
+      "params": {
+        "trigger_customer": "세진테크",
+        "trigger_item": "AL5052",
+        "trigger_condition": {
+          "min_quantity": 50
+        },
+        "effect_customer": "세진테크",
+        "effect_item": "CARBON_STEEL"
+      }
+    },
+    {
+      "id": "INV-004",
+      "question": "우진소재의 AL6061, CU_PLATE, STS316의 높은 변동성의 원인은 무엇인가?",
+      "analysis_type": "drift_detail",
+      "params": {
+        "customer": "우진소재",
+        "item": "STS316",
+        "remove_precursor": "고객",
+        "remove_lag_max": 5
+      }
+    },
+    {
+      "id": "INV-005",
+      "question": "한진산업의 STS304와 CU_PIPE의 주문 간격 및 패턴의 차이는 무엇인가?",
+      "analysis_type": "alternation_check",
+      "params": {
+        "customer": "한진산업",
+        "items": [
+          "STS304",
+          "CU_PIPE"
+        ]
+      }
+    }
+  ]
+}

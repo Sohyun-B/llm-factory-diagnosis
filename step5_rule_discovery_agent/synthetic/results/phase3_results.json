@@ -1,0 +1,224 @@
+{
+  "H-A": {
+    "verdict": "rejected",
+    "hit_rate": 0.0,
+    "hits": 0,
+    "total": 12,
+    "expected_random": 0.24,
+    "lift": 0.0,
+    "details": [
+      {
+        "trigger": "2025-04-07",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-05-12",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-06-09",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-07-07",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-08-04",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-09-09",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-10-13",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-11-03",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-12-01",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2026-01-12",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2026-02-02",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2026-03-09",
+        "effect": null,
+        "lag": null
+      }
+    ],
+    "statement": "대성기업의 AL6061 짧은 간격 주문은 한진산업의 STS304 주문에 의해 촉발된다.",
+    "success_criteria": "대성기업의 AL6061 주문이 한진산업의 STS304 주문 직후 발생하면 확인"
+  },
+  "H-B": {
+    "verdict": "rejected",
+    "hit_rate": 0.0,
+    "hits": 0,
+    "total": 14,
+    "expected_random": 0.11,
+    "lift": 0.0,
+    "details": [
+      {
+        "trigger": "2025-04-07",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-05-05",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-05-19",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-06-04",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-07-07",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-09-08",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-09-23",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-11-24",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2025-12-08",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2026-01-05",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2026-01-09",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2026-01-26",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2026-02-26",
+        "effect": null,
+        "lag": null
+      },
+      {
+        "trigger": "2026-03-26",
+        "effect": null,
+        "lag": null
+      }
+    ],
+    "statement": "동아전자의 GASKET_A 긴 주문 간격은 명성산업의 PIPE_SCH40 주문과 상호작용이 있다.",
+    "success_criteria": "명성산업의 PIPE_SCH40 주문 후 동아전자의 GASKET_A 주문이 발생하면 확인"
+  },
+  "H-C": {
+    "raw": {
+      "n_intervals": 7,
+      "spearman_rho": 0.143,
+      "spearman_p": 0.76
+    },
+    "verdict": "rejected",
+    "statement": "우진소재의 STS316 변동성은 특정 고객의 행동에 의해 유발된다.",
+    "success_criteria": "고객 제거 후 변동성이 감소하면 확인"
+  },
+  "H-D": {
+    "verdict": "rejected",
+    "expected_period": 15,
+    "tolerance": "±15% (13~17일)",
+    "matches": 0,
+    "total_intervals": 11,
+    "accuracy": 0.0,
+    "actual_intervals": [
+      35,
+      28,
+      28,
+      28,
+      36,
+      34,
+      21,
+      28,
+      42,
+      21,
+      35
+    ],
+    "mean_interval": 30.5,
+    "deviations": [
+      20,
+      13,
+      13,
+      13,
+      21,
+      19,
+      6,
+      13,
+      27,
+      6,
+      20
+    ],
+    "statement": "한진산업의 STS304와 CU_PIPE 사이에 교대 패턴이 존재한다.",
+    "success_criteria": "교대 패턴이 15일 주기로 나타나면 확인"
+  },
+  "H-E": {
+    "verdict": "confirmed",
+    "expected_period": 91,
+    "tolerance": "±5% (86~96일)",
+    "matches": 3,
+    "total_intervals": 3,
+    "accuracy": 1.0,
+    "actual_intervals": [
+      91,
+      91,
+      91
+    ],
+    "mean_interval": 91.0,
+    "deviations": [
+      0,
+      0,
+      0
+    ],
+    "statement": "세진테크의 정기적 주문 패턴은 내재적 요인에 의해 유지된다.",
+    "success_criteria": "91일 주기의 주문 패턴이 확인되면 가설 확인"
+  }
+}
