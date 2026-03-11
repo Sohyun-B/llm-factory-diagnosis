@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(streamlit run:*)",
+      "WebSearch",
+      "Bash(python:*)",
+      "Bash(powershell:*)",
+      "WebFetch(domain:arxiv.org)"
+    ]
+  }
+}
